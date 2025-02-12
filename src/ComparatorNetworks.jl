@@ -37,9 +37,18 @@ end
     ComparatorNetwork{N}(network.comparators)
 @inline Base.hash(network::ComparatorNetwork{N}, h::UInt) where {N} =
     hash(network.comparators, h)
+@inline Base.isless(
+    a::ComparatorNetwork{M},
+    b::ComparatorNetwork{N},
+) where {M,N} = isless(
+    (M, length(a.comparators), a.comparators),
+    (N, length(b.comparators), b.comparators))
 
 
 ################################################################################
+
+
+export depth, canonize
 
 
 struct Instruction{T}
@@ -49,7 +58,7 @@ struct Instruction{T}
 end
 
 
-function sorting_code(network::ComparatorNetwork{N}) where {N}
+function _comparator_code(network::ComparatorNetwork{N}) where {N}
     generation = [1 for _ = 1:N]
     code = Instruction{Tuple{Int,Int}}[]
     for (x, y) in network.comparators
@@ -60,7 +69,7 @@ function sorting_code(network::ComparatorNetwork{N}) where {N}
         gen_y = generation[y]
         outputs = [(x, gen_x + 1), (y, gen_y + 1)]
         inputs = [(x, gen_x), (y, gen_y)]
-        push!(code, Instruction(:minmax, outputs, inputs))
+        push!(code, Instruction(:comparator, outputs, inputs))
         generation[x] = gen_x + 1
         generation[y] = gen_y + 1
     end
@@ -70,31 +79,181 @@ function sorting_code(network::ComparatorNetwork{N}) where {N}
 end
 
 
-function accumulation_code(network::ComparatorNetwork{N}) where {N}
-    generation = [1 for _ = 1:N]
-    code = Instruction{Tuple{Int,Int}}[]
-    k = N
-    for (x, y) in network.comparators
-        x = Int(x)
-        y = Int(y)
-        @assert x < y
-        gen_x = generation[x]
-        gen_y = generation[y]
-        k += 1
-        # TwoSum algorithm with temporary variables
-        # k1 = x_prime, k2 = y_prime, k3 = delta_x, k4 = delta_y.
-        push!(code, Instruction(:+, [(x, gen_x + 1)], [(x, gen_x), (y, gen_y)]))
-        push!(code, Instruction(:-, [(k, 1)], [(x, gen_x + 1), (y, gen_y)]))
-        push!(code, Instruction(:-, [(k, 2)], [(x, gen_x + 1), (k, 1)]))
-        push!(code, Instruction(:-, [(k, 3)], [(x, gen_x), (k, 1)]))
-        push!(code, Instruction(:-, [(k, 4)], [(y, gen_y), (k, 2)]))
-        push!(code, Instruction(:+, [(y, gen_y + 1)], [(k, 3), (k, 4)]))
-        generation[x] = gen_x + 1
-        generation[y] = gen_y + 1
+function _is_valid_ssa(
+    code::AbstractVector{Instruction{T}},
+    outputs::AbstractVector{T},
+    inputs::AbstractVector{T},
+) where {T}
+    computed = Set{T}(inputs)
+    for instr in code
+        for input in instr.inputs
+            if !(input in computed)
+                return false
+            end
+        end
+        for output in instr.outputs
+            if output in computed
+                return false
+            end
+            push!(computed, output)
+        end
     end
-    outputs = [(i, generation[i]) for i = 1:N]
-    inputs = [(i, 1) for i = 1:N]
-    return (code, outputs, inputs)
+    return issubset(outputs, computed)
+end
+
+
+function _code_depth(
+    code::AbstractVector{Instruction{T}},
+    outputs::AbstractVector{T},
+    inputs::AbstractVector{T},
+) where {T}
+    generation = Dict{T,Int}()
+    for input in inputs
+        generation[input] = 0
+    end
+    for instr in code
+        gen = 0
+        for input in instr.inputs
+            @assert haskey(generation, input)
+            gen = max(gen, generation[input])
+        end
+        gen += 1
+        for output in instr.outputs
+            @assert !haskey(generation, output)
+            generation[output] = gen
+        end
+    end
+    result = 0
+    for output in outputs
+        @assert haskey(generation, output)
+        result = max(result, generation[output])
+    end
+    return result
+end
+
+
+function depth(network::ComparatorNetwork{N}) where {N}
+    code, outputs, inputs = _comparator_code(network)
+    return _code_depth(code, outputs, inputs)
+end
+
+
+function _eliminate_dead_code!(
+    code::AbstractVector{Instruction{T}},
+    outputs::AbstractVector{T},
+) where {T}
+    needed = Set{T}(outputs)
+    dead_indices = BitSet()
+    for (index, instr) in Iterators.reverse(pairs(code))
+        if any(output in needed for output in instr.outputs)
+            for input in instr.inputs
+                push!(needed, input)
+            end
+        else
+            push!(dead_indices, index)
+        end
+    end
+    deleteat!(code, dead_indices)
+    return !isempty(dead_indices)
+end
+
+
+function _delete_duplicate_comparators!(
+    code::AbstractVector{Instruction{T}},
+    outputs::AbstractVector{T},
+) where {T}
+    compared = Dict{T,T}()
+    identical = Dict{T,T}()
+    dead_indices = BitSet()
+    for (index, instr) in pairs(code)
+        @assert instr.opcode == :comparator
+        @assert length(instr.outputs) == 2
+        @assert length(instr.inputs) == 2
+        x_out, y_out = instr.outputs
+        x_in, y_in = instr.inputs
+        if ((haskey(compared, x_in) && (compared[x_in] == y_in)) ||
+            (haskey(compared, y_in) && (compared[y_in] == x_in)))
+            @assert (compared[x_in] == y_in) && (compared[y_in] == x_in)
+            push!(dead_indices, index)
+            identical[x_out] = x_in
+            identical[y_out] = y_in
+        else
+            compared[x_out] = y_out
+            compared[y_out] = x_out
+        end
+    end
+    deleteat!(code, dead_indices)
+    for instr in code
+        for (index, input) in pairs(instr.inputs)
+            if haskey(identical, input)
+                instr.inputs[index] = identical[input]
+            end
+        end
+        for (index, output) in pairs(instr.outputs)
+            if haskey(identical, output)
+                instr.outputs[index] = identical[output]
+            end
+        end
+    end
+    for (index, output) in pairs(outputs)
+        if haskey(identical, output)
+            outputs[index] = identical[output]
+        end
+    end
+    return !isempty(dead_indices)
+end
+
+
+function _canonize_code!(
+    code::AbstractVector{Instruction{T}},
+    outputs::AbstractVector{T},
+    inputs::AbstractVector{T},
+) where {T}
+    while true
+        changed = false
+        changed |= _eliminate_dead_code!(code, outputs)
+        @assert _is_valid_ssa(code, outputs, inputs)
+        changed |= _delete_duplicate_comparators!(code, outputs)
+        @assert _is_valid_ssa(code, outputs, inputs)
+        if !changed
+            break
+        end
+    end
+    generation = Dict{T,Int}()
+    blocks = Vector{Vector{Instruction{T}}}()
+    for input in inputs
+        generation[input] = 0
+    end
+    for instr in code
+        gen = 0
+        for input in instr.inputs
+            @assert haskey(generation, input)
+            gen = max(gen, generation[input])
+        end
+        gen += 1
+        if gen <= length(blocks)
+            push!(blocks[gen], instr)
+        else
+            @assert gen == length(blocks) + 1
+            push!(blocks, [instr])
+        end
+        for output in instr.outputs
+            @assert !haskey(generation, output)
+            generation[output] = gen
+        end
+    end
+    for block in blocks
+        sort!(block, by=instr -> instr.outputs)
+    end
+    return reduce(vcat, blocks)
+end
+
+
+function canonize(network::ComparatorNetwork{N}) where {N}
+    code, outputs, inputs = _comparator_code(network)
+    return ComparatorNetwork{N}([
+        (UInt8(instr.outputs[1][1]), UInt8(instr.outputs[2][1]))
+        for instr in _canonize_code!(code, outputs, inputs)])
 end
 
 
@@ -143,7 +302,7 @@ end
 # floating-point accumulation networks (FPANs). The generated values have
 # uniformly distributed signs and exponents in the range [-511, +512], and
 # their mantissas are biased to have many leading/trailing zeros/ones.
-function _rand_vec_f64()
+@inline function _rand_vec_f64()
     sign_exponent_data = _rand_vec_16()
     sign_bits = (sign_exponent_data << 48) & 0x8000000000000000
     exponents = ((sign_exponent_data & 0x03FF) + 0x0200) << 52
@@ -176,7 +335,96 @@ end
 end
 
 
-function _generate_code(network::ComparatorNetwork{N}, comparator) where {N}
+@generated function _top_down_accumulate(x::NTuple{N,T}) where {N,T}
+    xs = [Symbol('x', i) for i in Base.OneTo(N)]
+    body = Expr[]
+    push!(body, Expr(:meta, :inline))
+    push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
+    for i in 1:N-1
+        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    end
+    push!(body, Expr(:return, Expr(:tuple, xs...)))
+    return Expr(:block, body...)
+end
+
+
+@generated function _bottom_up_accumulate(x::NTuple{N,T}) where {N,T}
+    xs = [Symbol('x', i) for i in Base.OneTo(N)]
+    body = Expr[]
+    push!(body, Expr(:meta, :inline))
+    push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
+    for i = N-1:-1:1
+        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    end
+    push!(body, Expr(:return, Expr(:tuple, xs...)))
+    return Expr(:block, body...)
+end
+
+
+@generated function _riffle_accumulate(x::NTuple{N,T}) where {N,T}
+    xs = [Symbol('x', i) for i in Base.OneTo(N)]
+    body = Expr[]
+    push!(body, Expr(:meta, :inline))
+    push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
+    for i = 1:2:N-1
+        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    end
+    for i = 2:2:N-1
+        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    end
+    push!(body, Expr(:return, Expr(:tuple, xs...)))
+    return Expr(:block, body...)
+end
+
+
+@inline function _top_down_normalize(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _top_down_accumulate(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
+    end
+end
+
+
+@inline function _bottom_up_normalize(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _bottom_up_accumulate(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
+    end
+end
+
+
+@inline function _riffle_normalize(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _riffle_accumulate(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
+    end
+end
+
+
+@inline _rand_vec_mf64(::Val{N}) where {N} =
+    _riffle_normalize(ntuple(_ -> _rand_vec_f64(), Val{N}()))
+
+
+################################################################################
+
+
+export generate_code
+
+
+function generate_code(network::ComparatorNetwork{N}, comparator) where {N}
     xs = [Symbol('x', i) for i in Base.OneTo(N)]
     body = Expr[]
     push!(body, Expr(:meta, :inline))
