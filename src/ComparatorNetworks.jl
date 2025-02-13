@@ -36,7 +36,7 @@ end
 @inline Base.copy(network::ComparatorNetwork{N}) where {N} =
     ComparatorNetwork{N}(network.comparators)
 @inline Base.hash(network::ComparatorNetwork{N}, h::UInt) where {N} =
-    hash(network.comparators, h)
+    hash(network.comparators, hash(N, h))
 @inline Base.isless(
     a::ComparatorNetwork{M},
     b::ComparatorNetwork{N},
