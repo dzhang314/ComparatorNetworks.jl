@@ -219,6 +219,10 @@ function _canonize_code!(
             break
         end
     end
+    if isempty(code)
+        # Early return necessary to avoid calling `reduce(vcat, [])`.
+        return code
+    end
     generation = Dict{T,Int}()
     blocks = Vector{Vector{Instruction{T}}}()
     for input in inputs
@@ -413,6 +417,39 @@ end
 
 @inline _rand_vec_mf64(::Val{M}, ::Val{N}) where {M,N} =
     _riffle_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
+
+
+################################################################################
+
+
+@inline _flip_bit(x::Float64, n::Int) =
+    reinterpret(Float64, xor(reinterpret(UInt64, x), (one(UInt64) << n)))
+
+
+@inline _flip_all_bits(x::NTuple{N,Float64}) where {N} = [
+    ntuple(i -> ifelse(i == j, _flip_bit(x[i], k), x[i]), Val{N}())
+    for j = 1:N for k = 0:63]
+
+
+function _bitwise_optimize(objective_function, point)
+    best_point = point
+    best_value = objective_function(point)
+    while true
+        found_improvement = false
+        for flipped_point in _flip_all_bits(best_point)
+            flipped_value = objective_function(flipped_point)
+            if flipped_value > best_value
+                best_point = flipped_point
+                best_value = flipped_value
+                found_improvement = true
+            end
+        end
+        if !found_improvement
+            break
+        end
+    end
+    return (best_point, best_value)
+end
 
 
 ################################################################################
