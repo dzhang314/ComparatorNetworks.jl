@@ -260,17 +260,14 @@ end
 ################################################################################
 
 
-@inline _rand_vec_64() = Vec{8,UInt64}((
-    rand(UInt64), rand(UInt64), rand(UInt64), rand(UInt64),
-    rand(UInt64), rand(UInt64), rand(UInt64), rand(UInt64)))
+@inline _rand_vec_64(::Val{N}) where {N} =
+    Vec{N,UInt64}(ntuple(_ -> rand(UInt64), Val{N}()))
 
 
-@inline function _rand_vec_16()
-    a = rand(UInt64)
-    b = rand(UInt64)
-    return Vec{8,UInt64}((
-        a & 0xFFFF, (a >> 16) & 0xFFFF, (a >> 32) & 0xFFFF, a >> 48,
-        b & 0xFFFF, (b >> 16) & 0xFFFF, (b >> 32) & 0xFFFF, b >> 48))
+@inline function _rand_vec_16(::Val{N}) where {N}
+    data = ntuple(_ -> rand(UInt64), Val{(N + 3) >> 2}())
+    return Vec{N,UInt64}(ntuple(
+        i -> (data[(i+3)>>2] >> ((i & 3) << 4)) & 0xFFFF, Val{N}()))
 end
 
 
@@ -302,11 +299,11 @@ end
 # floating-point accumulation networks (FPANs). The generated values have
 # uniformly distributed signs and exponents in the range [-511, +512], and
 # their mantissas are biased to have many leading/trailing zeros/ones.
-@inline function _rand_vec_f64()
-    sign_exponent_data = _rand_vec_16()
+@inline function _rand_vec_f64(::Val{N}) where {N}
+    sign_exponent_data = _rand_vec_16(Val{N}())
     sign_bits = (sign_exponent_data << 48) & 0x8000000000000000
     exponents = ((sign_exponent_data & 0x03FF) + 0x0200) << 52
-    mantissa_data = _rand_vec_64()
+    mantissa_data = _rand_vec_64(Val{N}())
     i = mantissa_data >> 58
     j = (mantissa_data >> 52) & 0x3F
     low_index = _reduce_63_to_52(min(i, j))
@@ -314,7 +311,7 @@ end
     mantissas = mantissa_data & 0x000FFFFFFFFFFFFF
     mantissas = _copy_low_bits(mantissas, low_index)
     mantissas = _copy_high_bits(mantissas, high_index)
-    return reinterpret(Vec{8,Float64}, sign_bits | exponents | mantissas)
+    return reinterpret(Vec{N,Float64}, sign_bits | exponents | mantissas)
 end
 
 
@@ -414,8 +411,8 @@ end
 end
 
 
-@inline _rand_vec_mf64(::Val{N}) where {N} =
-    _riffle_normalize(ntuple(_ -> _rand_vec_f64(), Val{N}()))
+@inline _rand_vec_mf64(::Val{M}, ::Val{N}) where {M,N} =
+    _riffle_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
 
 
 ################################################################################
