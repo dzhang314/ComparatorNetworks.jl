@@ -264,6 +264,387 @@ end
 ################################################################################
 
 
+const ALL_BIT_STRINGS_3 = (0x0F, 0x33, 0x55)
+
+const SORTED_BIT_STRINGS_3 = (0x01, 0x17, 0x7F)
+
+
+const ALL_BIT_STRINGS_4 = (0x00FF, 0x0F0F, 0x3333, 0x5555)
+
+const SORTED_BIT_STRINGS_4 = (0x0001, 0x0117, 0x177F, 0x7FFF)
+
+
+const ALL_BIT_STRINGS_5 =
+    (0x0000FFFF, 0x00FF00FF, 0x0F0F0F0F, 0x33333333, 0x55555555)
+
+const SORTED_BIT_STRINGS_5 =
+    (0x00000001, 0x00010117, 0x0117177F, 0x177F7FFF, 0x7FFFFFFF)
+
+
+const ALL_BIT_STRINGS_6 = (
+    0x00000000FFFFFFFF, 0x0000FFFF0000FFFF, 0x00FF00FF00FF00FF,
+    0x0F0F0F0F0F0F0F0F, 0x3333333333333333, 0x5555555555555555)
+
+const SORTED_BIT_STRINGS_6 = (
+    0x0000000000000001, 0x0000000100010117, 0x000101170117177F,
+    0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)
+
+
+const ALL_BIT_STRINGS_7 = (
+    Vec{2,UInt64}((0x0000000000000000, 0xFFFFFFFFFFFFFFFF)),
+    Vec{2,UInt64}((0x00000000FFFFFFFF, 0x00000000FFFFFFFF)),
+    Vec{2,UInt64}((0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF)),
+    Vec{2,UInt64}((0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF)),
+    Vec{2,UInt64}((0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F)),
+    Vec{2,UInt64}((0x3333333333333333, 0x3333333333333333)),
+    Vec{2,UInt64}((0x5555555555555555, 0x5555555555555555)))
+
+const SORTED_BIT_STRINGS_7 = (
+    Vec{2,UInt64}((0x0000000000000000, 0x0000000000000001)),
+    Vec{2,UInt64}((0x0000000000000001, 0x0000000100010117)),
+    Vec{2,UInt64}((0x0000000100010117, 0x000101170117177F)),
+    Vec{2,UInt64}((0x000101170117177F, 0x0117177F177F7FFF)),
+    Vec{2,UInt64}((0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF)),
+    Vec{2,UInt64}((0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)),
+    Vec{2,UInt64}((0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+
+const ALL_BIT_STRINGS_8 = (
+    Vec{4,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{4,UInt64}((
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF)),
+    Vec{4,UInt64}((
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF)),
+    Vec{4,UInt64}((
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF)),
+    Vec{4,UInt64}((
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF)),
+    Vec{4,UInt64}((
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F)),
+    Vec{4,UInt64}((
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333)),
+    Vec{4,UInt64}((
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555)))
+
+const SORTED_BIT_STRINGS_8 = (
+    Vec{4,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001)),
+    Vec{4,UInt64}((
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117)),
+    Vec{4,UInt64}((
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F)),
+    Vec{4,UInt64}((
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF)),
+    Vec{4,UInt64}((
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF)),
+    Vec{4,UInt64}((
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)),
+    Vec{4,UInt64}((
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{4,UInt64}((
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+
+const ALL_BIT_STRINGS_9 = (
+    Vec{8,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF)),
+    Vec{8,UInt64}((
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF)),
+    Vec{8,UInt64}((
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF)),
+    Vec{8,UInt64}((
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F)),
+    Vec{8,UInt64}((
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333)),
+    Vec{8,UInt64}((
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555)))
+
+const SORTED_BIT_STRINGS_9 = (
+    Vec{8,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001)),
+    Vec{8,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117)),
+    Vec{8,UInt64}((
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F)),
+    Vec{8,UInt64}((
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F,
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF)),
+    Vec{8,UInt64}((
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF)),
+    Vec{8,UInt64}((
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{8,UInt64}((
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+
+const ALL_BIT_STRINGS_10 = (
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0x0000000000000000,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF,
+        0x0000000000000000, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF,
+        0x00000000FFFFFFFF, 0x00000000FFFFFFFF)),
+    Vec{16,UInt64}((
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
+        0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF)),
+    Vec{16,UInt64}((
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF,
+        0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF)),
+    Vec{16,UInt64}((
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F,
+        0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F)),
+    Vec{16,UInt64}((
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333,
+        0x3333333333333333, 0x3333333333333333)),
+    Vec{16,UInt64}((
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555,
+        0x5555555555555555, 0x5555555555555555)))
+
+const SORTED_BIT_STRINGS_10 = (
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000000,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F)),
+    Vec{16,UInt64}((
+        0x0000000000000000, 0x0000000000000001,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F,
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F,
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF)),
+    Vec{16,UInt64}((
+        0x0000000000000001, 0x0000000100010117,
+        0x0000000100010117, 0x000101170117177F,
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF)),
+    Vec{16,UInt64}((
+        0x0000000100010117, 0x000101170117177F,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x000101170117177F, 0x0117177F177F7FFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)),
+    Vec{16,UInt64}((
+        0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
+        0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+
+################################################################################
+
+
 @inline _rand_vec_64(::Val{N}) where {N} =
     Vec{N,UInt64}(ntuple(_ -> rand(UInt64), Val{N}()))
 
@@ -322,10 +703,10 @@ end
 ################################################################################
 
 
-@inline _bitwise_minmax(x, y) = (x & y, x | y)
+@inline bitminmax(x, y) = (x & y, x | y)
 
 
-@inline function _two_sum(x, y)
+@inline function two_sum(x, y)
     s = x + y
     x_prime = s - y
     y_prime = s - x_prime
@@ -336,55 +717,103 @@ end
 end
 
 
-@generated function _top_down_accumulate(x::NTuple{N,T}) where {N,T}
+function _inline_pass_expr(comparator::Symbol, method::Symbol, N::Int)
     xs = [Symbol('x', i) for i in Base.OneTo(N)]
     body = Expr[]
     push!(body, Expr(:meta, :inline))
     push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
-    for i in 1:N-1
-        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
-            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    if method == :top_down
+        for i in 1:N-1
+            push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+                Expr(:call, comparator, xs[i], xs[i+1])))
+        end
+    elseif method == :bottom_up
+        for i = N-1:-1:1
+            push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+                Expr(:call, comparator, xs[i], xs[i+1])))
+        end
+    elseif method == :riffle
+        for i = 1:2:N-1
+            push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+                Expr(:call, comparator, xs[i], xs[i+1])))
+        end
+        for i = 2:2:N-1
+            push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
+                Expr(:call, comparator, xs[i], xs[i+1])))
+        end
+    else
+        @assert false
     end
     push!(body, Expr(:return, Expr(:tuple, xs...)))
     return Expr(:block, body...)
+end
+
+
+@generated function _top_down_bitbubble(x::NTuple{N,T}) where {N,T}
+    return _inline_pass_expr(:bitminmax, :top_down, N)
+end
+
+
+@generated function _top_down_accumulate(x::NTuple{N,T}) where {N,T}
+    return _inline_pass_expr(:two_sum, :top_down, N)
+end
+
+
+@generated function _bottom_up_bitbubble(x::NTuple{N,T}) where {N,T}
+    return _inline_pass_expr(:bitminmax, :bottom_up, N)
 end
 
 
 @generated function _bottom_up_accumulate(x::NTuple{N,T}) where {N,T}
-    xs = [Symbol('x', i) for i in Base.OneTo(N)]
-    body = Expr[]
-    push!(body, Expr(:meta, :inline))
-    push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
-    for i = N-1:-1:1
-        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
-            Expr(:call, :_two_sum, xs[i], xs[i+1])))
-    end
-    push!(body, Expr(:return, Expr(:tuple, xs...)))
-    return Expr(:block, body...)
+    return _inline_pass_expr(:two_sum, :bottom_up, N)
+end
+
+
+@generated function _riffle_bitbubble(x::NTuple{N,T}) where {N,T}
+    return _inline_pass_expr(:bitminmax, :riffle, N)
 end
 
 
 @generated function _riffle_accumulate(x::NTuple{N,T}) where {N,T}
-    xs = [Symbol('x', i) for i in Base.OneTo(N)]
-    body = Expr[]
-    push!(body, Expr(:meta, :inline))
-    push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
-    for i = 1:2:N-1
-        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
-            Expr(:call, :_two_sum, xs[i], xs[i+1])))
+    return _inline_pass_expr(:two_sum, :riffle, N)
+end
+
+
+@inline function _top_down_bitsort(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _top_down_bitbubble(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
     end
-    for i = 2:2:N-1
-        push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
-            Expr(:call, :_two_sum, xs[i], xs[i+1])))
-    end
-    push!(body, Expr(:return, Expr(:tuple, xs...)))
-    return Expr(:block, body...)
 end
 
 
 @inline function _top_down_normalize(x::NTuple{N,T}) where {N,T}
     while true
         x_next = _top_down_accumulate(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
+    end
+end
+
+
+@assert _top_down_bitsort(ALL_BIT_STRINGS_3) === SORTED_BIT_STRINGS_3
+@assert _top_down_bitsort(ALL_BIT_STRINGS_4) === SORTED_BIT_STRINGS_4
+@assert _top_down_bitsort(ALL_BIT_STRINGS_5) === SORTED_BIT_STRINGS_5
+@assert _top_down_bitsort(ALL_BIT_STRINGS_6) === SORTED_BIT_STRINGS_6
+@assert _top_down_bitsort(ALL_BIT_STRINGS_7) === SORTED_BIT_STRINGS_7
+@assert _top_down_bitsort(ALL_BIT_STRINGS_8) === SORTED_BIT_STRINGS_8
+@assert _top_down_bitsort(ALL_BIT_STRINGS_9) === SORTED_BIT_STRINGS_9
+@assert _top_down_bitsort(ALL_BIT_STRINGS_10) === SORTED_BIT_STRINGS_10
+
+
+@inline function _bottom_up_bitsort(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _bottom_up_bitbubble(x)
         if x_next === x
             return x
         end
@@ -404,6 +833,27 @@ end
 end
 
 
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_3) === SORTED_BIT_STRINGS_3
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_4) === SORTED_BIT_STRINGS_4
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_5) === SORTED_BIT_STRINGS_5
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_6) === SORTED_BIT_STRINGS_6
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_7) === SORTED_BIT_STRINGS_7
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_8) === SORTED_BIT_STRINGS_8
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_9) === SORTED_BIT_STRINGS_9
+@assert _bottom_up_bitsort(ALL_BIT_STRINGS_10) === SORTED_BIT_STRINGS_10
+
+
+@inline function _riffle_bitsort(x::NTuple{N,T}) where {N,T}
+    while true
+        x_next = _riffle_bitbubble(x)
+        if x_next === x
+            return x
+        end
+        x = x_next
+    end
+end
+
+
 @inline function _riffle_normalize(x::NTuple{N,T}) where {N,T}
     while true
         x_next = _riffle_accumulate(x)
@@ -415,6 +865,16 @@ end
 end
 
 
+@assert _riffle_bitsort(ALL_BIT_STRINGS_3) === SORTED_BIT_STRINGS_3
+@assert _riffle_bitsort(ALL_BIT_STRINGS_4) === SORTED_BIT_STRINGS_4
+@assert _riffle_bitsort(ALL_BIT_STRINGS_5) === SORTED_BIT_STRINGS_5
+@assert _riffle_bitsort(ALL_BIT_STRINGS_6) === SORTED_BIT_STRINGS_6
+@assert _riffle_bitsort(ALL_BIT_STRINGS_7) === SORTED_BIT_STRINGS_7
+@assert _riffle_bitsort(ALL_BIT_STRINGS_8) === SORTED_BIT_STRINGS_8
+@assert _riffle_bitsort(ALL_BIT_STRINGS_9) === SORTED_BIT_STRINGS_9
+@assert _riffle_bitsort(ALL_BIT_STRINGS_10) === SORTED_BIT_STRINGS_10
+
+
 @inline _rand_vec_mf64(::Val{M}, ::Val{N}) where {M,N} =
     _riffle_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
 
@@ -422,33 +882,22 @@ end
 ################################################################################
 
 
-@inline _flip_bit(x::Float64, n::Int) =
-    reinterpret(Float64, xor(reinterpret(UInt64, x), (one(UInt64) << n)))
+@inline function _flip_bit(x::T, n::Int) where {T}
+    u = reinterpret(Unsigned, x)
+    return reinterpret(T, xor(u, one(typeof(u)) << n))
+end
 
 
-@inline _flip_all_bits(x::NTuple{N,Float64}) where {N} = [
-    ntuple(i -> ifelse(i == j, _flip_bit(x[i], k), x[i]), Val{N}())
-    for j = 1:N for k = 0:63]
+const BITS_PER_BYTE = 8
+@assert BITS_PER_BYTE * sizeof(UInt32) == 32
+@assert BITS_PER_BYTE * sizeof(UInt64) == 64
 
 
-function _bitwise_optimize(objective_function, point)
-    best_point = point
-    best_value = objective_function(point)
-    while true
-        found_improvement = false
-        for flipped_point in _flip_all_bits(best_point)
-            flipped_value = objective_function(flipped_point)
-            if flipped_value > best_value
-                best_point = flipped_point
-                best_value = flipped_value
-                found_improvement = true
-            end
-        end
-        if !found_improvement
-            break
-        end
-    end
-    return (best_point, best_value)
+@inline function _flip_bit(x::NTuple{N,T}, n::Int) where {N,T}
+    bit_size = BITS_PER_BYTE * sizeof(T)
+    item_index, bit_index = divrem(n, bit_size)
+    item_index += 1
+    return Base.setindex(x, _flip_bit(x[item_index], bit_index), item_index)
 end
 
 
