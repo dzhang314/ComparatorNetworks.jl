@@ -48,7 +48,24 @@ end
 ################################################################################
 
 
-export depth, canonize
+export depth
+
+
+function depth(network::ComparatorNetwork{N}) where {N}
+    generation = ntuple(_ -> 0, Val{N}())
+    @inbounds for (i, j) in network.comparators
+        age = max(generation[i], generation[j]) + 1
+        generation = Base.setindex(generation, age, i)
+        generation = Base.setindex(generation, age, j)
+    end
+    return maximum(generation)
+end
+
+
+################################################################################
+
+
+export canonize
 
 
 struct Instruction{T}
@@ -129,12 +146,6 @@ function _code_depth(
         result = max(result, generation[output])
     end
     return result
-end
-
-
-function depth(network::ComparatorNetwork{N}) where {N}
-    code, outputs, inputs = _comparator_code(network)
-    return _code_depth(code, outputs, inputs)
 end
 
 
@@ -264,30 +275,49 @@ end
 ################################################################################
 
 
+export ALL_BIT_STRINGS, SORTED_BIT_STRINGS
+
+
 const ALL_BIT_STRINGS_3 = (0x0F, 0x33, 0x55)
 
+@inline ALL_BIT_STRINGS(::Val{3}) = ALL_BIT_STRINGS_3
+
 const SORTED_BIT_STRINGS_3 = (0x01, 0x17, 0x7F)
+
+@inline SORTED_BIT_STRINGS(::Val{3}) = SORTED_BIT_STRINGS_3
 
 
 const ALL_BIT_STRINGS_4 = (0x00FF, 0x0F0F, 0x3333, 0x5555)
 
+@inline ALL_BIT_STRINGS(::Val{4}) = ALL_BIT_STRINGS_4
+
 const SORTED_BIT_STRINGS_4 = (0x0001, 0x0117, 0x177F, 0x7FFF)
+
+@inline SORTED_BIT_STRINGS(::Val{4}) = SORTED_BIT_STRINGS_4
 
 
 const ALL_BIT_STRINGS_5 =
     (0x0000FFFF, 0x00FF00FF, 0x0F0F0F0F, 0x33333333, 0x55555555)
 
+@inline ALL_BIT_STRINGS(::Val{5}) = ALL_BIT_STRINGS_5
+
 const SORTED_BIT_STRINGS_5 =
     (0x00000001, 0x00010117, 0x0117177F, 0x177F7FFF, 0x7FFFFFFF)
+
+@inline SORTED_BIT_STRINGS(::Val{5}) = SORTED_BIT_STRINGS_5
 
 
 const ALL_BIT_STRINGS_6 = (
     0x00000000FFFFFFFF, 0x0000FFFF0000FFFF, 0x00FF00FF00FF00FF,
     0x0F0F0F0F0F0F0F0F, 0x3333333333333333, 0x5555555555555555)
 
+@inline ALL_BIT_STRINGS(::Val{6}) = ALL_BIT_STRINGS_6
+
 const SORTED_BIT_STRINGS_6 = (
     0x0000000000000001, 0x0000000100010117, 0x000101170117177F,
     0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)
+
+@inline SORTED_BIT_STRINGS(::Val{6}) = SORTED_BIT_STRINGS_6
 
 
 const ALL_BIT_STRINGS_7 = (
@@ -299,6 +329,8 @@ const ALL_BIT_STRINGS_7 = (
     Vec{2,UInt64}((0x3333333333333333, 0x3333333333333333)),
     Vec{2,UInt64}((0x5555555555555555, 0x5555555555555555)))
 
+@inline ALL_BIT_STRINGS(::Val{7}) = ALL_BIT_STRINGS_7
+
 const SORTED_BIT_STRINGS_7 = (
     Vec{2,UInt64}((0x0000000000000000, 0x0000000000000001)),
     Vec{2,UInt64}((0x0000000000000001, 0x0000000100010117)),
@@ -307,6 +339,8 @@ const SORTED_BIT_STRINGS_7 = (
     Vec{2,UInt64}((0x0117177F177F7FFF, 0x177F7FFF7FFFFFFF)),
     Vec{2,UInt64}((0x177F7FFF7FFFFFFF, 0x7FFFFFFFFFFFFFFF)),
     Vec{2,UInt64}((0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+@inline SORTED_BIT_STRINGS(::Val{7}) = SORTED_BIT_STRINGS_7
 
 
 const ALL_BIT_STRINGS_8 = (
@@ -335,6 +369,8 @@ const ALL_BIT_STRINGS_8 = (
         0x5555555555555555, 0x5555555555555555,
         0x5555555555555555, 0x5555555555555555)))
 
+@inline ALL_BIT_STRINGS(::Val{8}) = ALL_BIT_STRINGS_8
+
 const SORTED_BIT_STRINGS_8 = (
     Vec{4,UInt64}((
         0x0000000000000000, 0x0000000000000000,
@@ -360,6 +396,8 @@ const SORTED_BIT_STRINGS_8 = (
     Vec{4,UInt64}((
         0x7FFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+@inline SORTED_BIT_STRINGS(::Val{8}) = SORTED_BIT_STRINGS_8
 
 
 const ALL_BIT_STRINGS_9 = (
@@ -409,6 +447,8 @@ const ALL_BIT_STRINGS_9 = (
         0x5555555555555555, 0x5555555555555555,
         0x5555555555555555, 0x5555555555555555)))
 
+@inline ALL_BIT_STRINGS(::Val{9}) = ALL_BIT_STRINGS_9
+
 const SORTED_BIT_STRINGS_9 = (
     Vec{8,UInt64}((
         0x0000000000000000, 0x0000000000000000,
@@ -455,6 +495,8 @@ const SORTED_BIT_STRINGS_9 = (
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
+
+@inline SORTED_BIT_STRINGS(::Val{9}) = SORTED_BIT_STRINGS_9
 
 
 const ALL_BIT_STRINGS_10 = (
@@ -549,6 +591,8 @@ const ALL_BIT_STRINGS_10 = (
         0x5555555555555555, 0x5555555555555555,
         0x5555555555555555, 0x5555555555555555)))
 
+@inline ALL_BIT_STRINGS(::Val{10}) = ALL_BIT_STRINGS_10
+
 const SORTED_BIT_STRINGS_10 = (
     Vec{16,UInt64}((
         0x0000000000000000, 0x0000000000000000,
@@ -641,6 +685,8 @@ const SORTED_BIT_STRINGS_10 = (
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
         0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
 
+@inline SORTED_BIT_STRINGS(::Val{10}) = SORTED_BIT_STRINGS_10
+
 
 ################################################################################
 
@@ -701,6 +747,9 @@ end
 
 
 ################################################################################
+
+
+export bitminmax, two_sum
 
 
 @inline bitminmax(x, y) = (x & y, x | y)
