@@ -708,6 +708,21 @@ export bitminmax, two_sum
 end
 
 
+############################################################ CRITERION FUNCTIONS
+
+
+export bitsorted
+
+
+@inline function bitsorted(data::AbstractVector{T}) where {T}
+    result = ~zero(T)
+    @simd for i = firstindex(data):lastindex(data)-1
+        @inbounds result &= data[i+1] | ~data[i]
+    end
+    return all(iszero(~result))
+end
+
+
 ############################################################## COMPARATOR PASSES
 
 
