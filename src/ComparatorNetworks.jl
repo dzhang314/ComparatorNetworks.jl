@@ -686,6 +686,60 @@ end
 end
 
 
+#################################################### BINARY TEST CASE GENERATION
+
+
+export all_bit_vectors
+
+
+@inline all_bit_vectors(::Val{0}) = ()
+
+
+@inline all_bit_vectors(::Val{1}) = (0b01,)
+
+
+@inline all_bit_vectors(::Val{2}) = (0b0011, 0b0101)
+
+
+@inline all_bit_vectors(::Val{3}) = (0x0F, 0x33, 0x55)
+
+
+@inline all_bit_vectors(::Val{4}) = (0x00FF, 0x0F0F, 0x3333, 0x5555)
+
+
+@inline all_bit_vectors(::Val{5}) =
+    (0x00000001, 0x00010117, 0x0117177F, 0x177F7FFF, 0x7FFFFFFF)
+
+
+@inline all_bit_vectors(::Val{6}) = (
+    0x00000000FFFFFFFF, 0x0000FFFF0000FFFF, 0x00FF00FF00FF00FF,
+    0x0F0F0F0F0F0F0F0F, 0x3333333333333333, 0x5555555555555555)
+
+
+@inline all_bit_vectors(::Val{7}) = (
+    Vec{2,UInt64}((0x0000000000000000, 0xFFFFFFFFFFFFFFFF)),
+    Vec{2,UInt64}((0x00000000FFFFFFFF, 0x00000000FFFFFFFF)),
+    Vec{2,UInt64}((0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF)),
+    Vec{2,UInt64}((0x00FF00FF00FF00FF, 0x00FF00FF00FF00FF)),
+    Vec{2,UInt64}((0x0F0F0F0F0F0F0F0F, 0x0F0F0F0F0F0F0F0F)),
+    Vec{2,UInt64}((0x3333333333333333, 0x3333333333333333)),
+    Vec{2,UInt64}((0x5555555555555555, 0x5555555555555555)))
+
+
+@inline _vec_concat(v::Vec{M,T}, w::Vec{N,T}) where {M,N,T} =
+    Vec{M + N,T}((v.data..., w.data...))
+
+
+@inline function all_bit_vectors(::Val{N}) where {N}
+    _zero = zero(Vec{1 << (N - 7),UInt64})
+    _one = ~_zero
+    first_row = _vec_concat(_zero, _one)
+    prev = all_bit_vectors(Val{N - 1}())
+    remaining_rows = _vec_concat.(prev, prev)
+    return (first_row, remaining_rows...)
+end
+
+
 #################################################### RANDOM TEST CASE GENERATION
 
 
