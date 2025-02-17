@@ -375,7 +375,7 @@ export test_comparator_network, prune!, generate_comparator_network,
 
 
 @inline function _unsafe_test_comparator_network!(
-    data::AbstractVector{T},
+    temp::AbstractVector{T},
     network::ComparatorNetwork{N},
     comparator::F,
     test_cases::AbstractVector{NTuple{N,T}},
@@ -383,10 +383,10 @@ export test_comparator_network, prune!, generate_comparator_network,
 ) where {N,T,F,G}
     for test_case in test_cases
         @simd ivdep for i = 1:N
-            @inbounds data[i] = test_case[i]
+            @inbounds temp[i] = test_case[i]
         end
-        _unsafe_run_comparator_network!(data, network, comparator)
-        @inline correct = criterion(data)
+        _unsafe_run_comparator_network!(temp, network, comparator)
+        @inline correct = criterion(temp)
         if !correct
             return false
         end
@@ -405,7 +405,7 @@ end
 
 
 function _unsafe_prune!(
-    data::AbstractVector{T},
+    temp::AbstractVector{T},
     network::ComparatorNetwork{N},
     comparator::F,
     test_cases::AbstractVector{NTuple{N,T}},
@@ -417,7 +417,7 @@ function _unsafe_prune!(
             original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
             pass = _unsafe_test_comparator_network!(
-                data, network, comparator, test_cases, criterion)
+                temp, network, comparator, test_cases, criterion)
             if pass
                 found = true
                 break
@@ -450,7 +450,7 @@ end
 
 
 function _unsafe_generate_comparator_network!(
-    data::AbstractVector{T},
+    temp::AbstractVector{T},
     comparator::F,
     test_cases::AbstractVector{NTuple{N,T}},
     criterion::G,
@@ -458,14 +458,14 @@ function _unsafe_generate_comparator_network!(
     network = ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
     while true
         pass = _unsafe_test_comparator_network!(
-            data, network, comparator, test_cases, criterion)
+            temp, network, comparator, test_cases, criterion)
         if pass
             break
         else
             push!(network.comparators, _random_comparator(Val{N}()))
         end
     end
-    return _unsafe_prune!(data, network, comparator, test_cases, criterion)
+    return _unsafe_prune!(temp, network, comparator, test_cases, criterion)
 end
 
 
@@ -478,7 +478,7 @@ end
 
 
 function _unsafe_mutate_comparator_network!(
-    data::AbstractVector{T},
+    temp::AbstractVector{T},
     network::ComparatorNetwork{N},
     comparator::F,
     test_cases::AbstractVector{NTuple{N,T}},
@@ -499,7 +499,7 @@ function _unsafe_mutate_comparator_network!(
             i = rand(1:num_comparators+1)
             insert!(network.comparators, i, _random_comparator(Val{N}()))
             pass = _unsafe_test_comparator_network!(
-                data, network, comparator, test_cases, criterion)
+                temp, network, comparator, test_cases, criterion)
             if pass
                 return network
             end
@@ -509,7 +509,7 @@ function _unsafe_mutate_comparator_network!(
             @inbounds original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
             pass = _unsafe_test_comparator_network!(
-                data, network, comparator, test_cases, criterion)
+                temp, network, comparator, test_cases, criterion)
             if pass
                 return network
             end
@@ -521,7 +521,7 @@ function _unsafe_mutate_comparator_network!(
             @inbounds network.comparators[i], network.comparators[j] =
                 network.comparators[j], network.comparators[i]
             pass = _unsafe_test_comparator_network!(
-                data, network, comparator, test_cases, criterion)
+                temp, network, comparator, test_cases, criterion)
             if pass
                 return network
             end
