@@ -370,7 +370,8 @@ end
 ################################################## COMPARATOR NETWORK GENERATION
 
 
-export test_comparator_network, prune!, generate_comparator_network
+export test_comparator_network, prune!, generate_comparator_network,
+    mutate_comparator_network!
 
 
 @inline function _unsafe_test_comparator_network!(
@@ -474,6 +475,78 @@ end
     criterion::G,
 ) where {N,T,F,G} = _unsafe_generate_comparator_network!(
     Vector{T}(undef, N), comparator, test_cases, criterion)
+
+
+function _unsafe_mutate_comparator_network!(
+    data::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+    insert_weight::Int,
+    delete_weight::Int,
+    swap_weight::Int,
+    duration_ns::UInt64,
+) where {N,T,F,G}
+    num_comparators = length(network.comparators)
+    w1 = insert_weight
+    w2 = w1 + delete_weight
+    w3 = w2 + swap_weight
+    start = time_ns()
+    while true
+        w = rand(1:w3)
+        if w <= w1 # insert
+            i = rand(1:num_comparators+1)
+            insert!(network.comparators, i, _random_comparator(Val{N}()))
+            pass = _unsafe_test_comparator_network!(
+                data, network, comparator, test_cases, criterion)
+            if pass
+                return network
+            end
+            deleteat!(network.comparators, i)
+        elseif w <= w2 # delete
+            i = rand(1:num_comparators)
+            @inbounds original_comparator = network.comparators[i]
+            deleteat!(network.comparators, i)
+            pass = _unsafe_test_comparator_network!(
+                data, network, comparator, test_cases, criterion)
+            if pass
+                return network
+            end
+            insert!(network.comparators, i, original_comparator)
+        else # swap
+            i = rand(1:num_comparators)
+            j = rand(1:num_comparators-1)
+            j += (j >= i)
+            @inbounds network.comparators[i], network.comparators[j] =
+                network.comparators[j], network.comparators[i]
+            pass = _unsafe_test_comparator_network!(
+                data, network, comparator, test_cases, criterion)
+            if pass
+                return network
+            end
+            @inbounds network.comparators[i], network.comparators[j] =
+                network.comparators[j], network.comparators[i]
+        end
+        if time_ns() - start >= duration_ns
+            return network
+        end
+    end
+end
+
+
+@inline mutate_comparator_network!(
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+    insert_weight::Int,
+    delete_weight::Int,
+    swap_weight::Int,
+    duration_ns::UInt64,
+) where {N,T,F,G} = _unsafe_mutate_comparator_network!(
+    Vector{T}(undef, N), network, comparator, test_cases, criterion,
+    insert_weight, delete_weight, swap_weight, duration_ns)
 
 
 ############################################################## COMPARATOR PASSES
