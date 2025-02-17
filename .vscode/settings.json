@@ -4,6 +4,8 @@
         "bitminmax",
         "bitsort",
         "bitsorted",
-        "FPANs"
+        "FPANs",
+        "ivdep",
+        "Zhang"
     ]
 }

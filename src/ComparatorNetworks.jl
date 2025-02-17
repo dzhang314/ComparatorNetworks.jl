@@ -1,5 +1,6 @@
 module ComparatorNetworks
 
+using Random: shuffle
 using SIMD: Vec
 
 ############################################## COMPARATOR NETWORK DATA STRUCTURE
@@ -295,16 +296,38 @@ end
 ################################################### COMPARATOR NETWORK EXECUTION
 
 
+export run_comparator_network!, run_comparator_network
+
+
 @inline function _unsafe_run_comparator_network!(
     data::AbstractVector{T},
     network::ComparatorNetwork{N},
     comparator::F,
 ) where {T,N,F}
     for (i, j) in network.comparators
-        @inbounds @inline data[i], data[j] =
-            comparator(data[i], data[j])
+        @inbounds @inline data[i], data[j] = comparator(data[i], data[j])
     end
     return data
+end
+
+
+@inline function run_comparator_network!(
+    data::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    comparator::F,
+) where {T,N,F}
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    return _unsafe_run_comparator_network!(data, network, comparator)
+end
+
+
+@inline function run_comparator_network(
+    input::NTuple{N,T},
+    network::ComparatorNetwork{N},
+    comparator::F,
+) where {T,N,F}
+    return _unsafe_run_comparator_network!(collect(input), network, comparator)
 end
 
 
@@ -342,6 +365,115 @@ export bitsorted
     end
     return all(iszero(~result))
 end
+
+
+################################################## COMPARATOR NETWORK GENERATION
+
+
+export test_comparator_network, prune!, generate_comparator_network
+
+
+@inline function _unsafe_test_comparator_network!(
+    data::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G}
+    for test_case in test_cases
+        @simd ivdep for i = 1:N
+            @inbounds data[i] = test_case[i]
+        end
+        _unsafe_run_comparator_network!(data, network, comparator)
+        @inline correct = criterion(data)
+        if !correct
+            return false
+        end
+    end
+    return true
+end
+
+
+@inline test_comparator_network(
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G} = _unsafe_test_comparator_network!(
+    Vector{T}(undef, N), network, comparator, test_cases, criterion)
+
+
+function _unsafe_prune!(
+    data::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G}
+    while true
+        found = false
+        for i in shuffle(1:length(network.comparators))
+            original_comparator = network.comparators[i]
+            deleteat!(network.comparators, i)
+            pass = _unsafe_test_comparator_network!(
+                data, network, comparator, test_cases, criterion)
+            if pass
+                found = true
+                break
+            else
+                insert!(network.comparators, i, original_comparator)
+            end
+        end
+        if !found
+            return network
+        end
+    end
+end
+
+
+@inline prune!(
+    network::ComparatorNetwork{N},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G} = _unsafe_prune!(
+    Vector{T}(undef, N), network, comparator, test_cases, criterion)
+
+
+@inline function _random_comparator(::Val{N}) where {N}
+    i = rand(0x01:UInt8(N))
+    j = rand(0x01:UInt8(N - 1))
+    j += UInt8(j >= i)
+    return minmax(i, j)
+end
+
+
+function _unsafe_generate_comparator_network!(
+    data::AbstractVector{T},
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G}
+    network = ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
+    while true
+        pass = _unsafe_test_comparator_network!(
+            data, network, comparator, test_cases, criterion)
+        if pass
+            break
+        else
+            push!(network.comparators, _random_comparator(Val{N}()))
+        end
+    end
+    return _unsafe_prune!(data, network, comparator, test_cases, criterion)
+end
+
+
+@inline generate_comparator_network(
+    comparator::F,
+    test_cases::AbstractVector{NTuple{N,T}},
+    criterion::G,
+) where {N,T,F,G} = _unsafe_generate_comparator_network!(
+    Vector{T}(undef, N), comparator, test_cases, criterion)
 
 
 ############################################################## COMPARATOR PASSES
