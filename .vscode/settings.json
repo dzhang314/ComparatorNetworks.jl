@@ -6,6 +6,7 @@
         "bitsorted",
         "FPANs",
         "ivdep",
+        "testset",
         "Zhang"
     ]
 }
