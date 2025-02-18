@@ -554,8 +554,8 @@ end
 
 export top_down_bitbubble, top_down_accumulate, top_down_bitsort,
     top_down_normalize, bottom_up_bitbubble, bottom_up_accumulate,
-    bottom_up_bitsort, bottom_up_normalize, riffle_bitbubble,
-    riffle_accumulate, riffle_bitsort, riffle_normalize
+    bottom_up_bitsort, bottom_up_normalize, alternating_bitbubble,
+    alternating_accumulate, alternating_bitsort, alternating_normalize
 
 
 function _inline_pass_expr(comparator::Symbol, method::Symbol, N::Int)
@@ -654,19 +654,19 @@ end
 end
 
 
-@generated function riffle_bitbubble(x::NTuple{N,T}) where {N,T}
+@generated function alternating_bitbubble(x::NTuple{N,T}) where {N,T}
     return _inline_pass_expr(:bitminmax, :riffle, N)
 end
 
 
-@generated function riffle_accumulate(x::NTuple{N,T}) where {N,T}
+@generated function alternating_accumulate(x::NTuple{N,T}) where {N,T}
     return _inline_pass_expr(:two_sum, :riffle, N)
 end
 
 
-@inline function riffle_bitsort(x::NTuple{N,T}) where {N,T}
+@inline function alternating_bitsort(x::NTuple{N,T}) where {N,T}
     while true
-        x_next = riffle_bitbubble(x)
+        x_next = alternating_bitbubble(x)
         if x_next === x
             return x
         end
@@ -675,9 +675,9 @@ end
 end
 
 
-@inline function riffle_normalize(x::NTuple{N,T}) where {N,T}
+@inline function alternating_normalize(x::NTuple{N,T}) where {N,T}
     while true
-        x_next = riffle_accumulate(x)
+        x_next = alternating_accumulate(x)
         if x_next === x
             return x
         end
@@ -799,7 +799,7 @@ end
 
 
 @inline _rand_vec_mf64(::Val{M}, ::Val{N}) where {M,N} =
-    _riffle_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
+    alternating_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
 
 
 ######################################################### TEST CASE OPTIMIZATION
