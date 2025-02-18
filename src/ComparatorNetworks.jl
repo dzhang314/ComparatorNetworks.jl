@@ -912,7 +912,7 @@ end
         new_x = x
         new_y = y
         for i = 1:X*BITS_PER_BYTE*sizeof(T)
-            flip_x = _flip_bit(x, i - 1)
+            flip_x = alternating_normalize(_flip_bit(x, i - 1))
             flip_error = _unsafe_mfadd_relative_error!(
                 temp, network, flip_x, y, Val{Z}())
             if flip_error > max_error
@@ -921,7 +921,7 @@ end
             end
         end
         for i = 1:Y*BITS_PER_BYTE*sizeof(T)
-            flip_y = _flip_bit(y, i - 1)
+            flip_y = alternating_normalize(_flip_bit(y, i - 1))
             flip_error = _unsafe_mfadd_relative_error!(
                 temp, network, x, flip_y, Val{Z}())
             if flip_error > max_error
