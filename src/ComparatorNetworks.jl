@@ -740,7 +740,7 @@ export all_bit_vectors
 end
 
 
-#################################################### RANDOM TEST CASE GENERATION
+############################################ FLOATING-POINT TEST CASE GENERATION
 
 
 @inline _rand_vec_64(::Val{N}) where {N} =
@@ -802,7 +802,53 @@ end
     alternating_normalize(ntuple(_ -> _rand_vec_f64(Val{M}()), Val{N}()))
 
 
+######################################################### TEST CASE MANIPULATION
+
+
+export riffle!, riffle
+
+
+@inline function riffle!(
+    v::AbstractVector{T},
+    x::AbstractVector{T},
+    y::AbstractVector{T},
+) where {T}
+    # Validate array dimensions.
+    Base.require_one_based_indexing(v, x, y)
+    len_x = length(x)
+    len_y = length(y)
+    @assert length(v) == len_x + len_y
+    # Riffle common elements.
+    @simd ivdep for i = 1:min(len_x, len_y)
+        _2i = i + i
+        @inbounds v[_2i-1] = x[i]
+        @inbounds v[_2i] = y[i]
+    end
+    # Append remaining elements.
+    if len_x > len_y
+        copyto!(v, len_y + len_y + 1, x, len_y + 1, len_x - len_y)
+    elseif len_x < len_y
+        copyto!(v, len_x + len_x + 1, y, len_x + 1, len_y - len_x)
+    end
+    return v
+end
+
+
+@generated function riffle(x::NTuple{M,T}, y::NTuple{N,T}) where {M,N,T}
+    xs = [Symbol('x', i) for i in Base.OneTo(M)]
+    ys = [Symbol('y', i) for i in Base.OneTo(N)]
+    vs = riffle!(Vector{Symbol}(undef, M + N), xs, ys)
+    return Expr(:block, Expr(:meta, :inline),
+        Expr(:(=), Expr(:tuple, xs...), :x),
+        Expr(:(=), Expr(:tuple, ys...), :y),
+        Expr(:return, Expr(:tuple, vs...)))
+end
+
+
 ######################################################### TEST CASE OPTIMIZATION
+
+
+export find_worst_case_mfadd_inputs
 
 
 @inline function _flip_bit(x::T, n::Int) where {T}
@@ -820,7 +866,141 @@ const BITS_PER_BYTE = 8
     bit_size = BITS_PER_BYTE * sizeof(T)
     item_index, bit_index = divrem(n, bit_size)
     item_index += 1
-    return Base.setindex(x, _flip_bit(x[item_index], bit_index), item_index)
+    return @inbounds Base.setindex(
+        x, _flip_bit(x[item_index], bit_index), item_index)
+end
+
+
+@inline function _unsafe_mfadd_relative_error!(
+    temp::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    x::NTuple{X,T},
+    y::NTuple{Y,T},
+    ::Val{Z},
+) where {N,X,Y,Z,T}
+    @assert X + Y == N
+    @assert 0 <= Z <= N
+    if Z == N
+        return zero(T)
+    end
+    data = riffle(x, y)
+    @simd ivdep for i = 1:N
+        @inbounds temp[i] = data[i]
+    end
+    _unsafe_run_comparator_network!(temp, network, two_sum)
+    head = ntuple(i -> (@inbounds temp[i]), Val{Z}())
+    normalized_head = alternating_normalize(head)
+    if !(head === normalized_head)
+        return one(T)
+    end
+    tail = ntuple(i -> (@inbounds temp[Z+i]), Val{N - Z}())
+    normalized_tail = alternating_normalize(tail)
+    return abs(first(normalized_tail) / first(normalized_head))
+end
+
+
+@inline function _unsafe_optimize_mfadd_relative_error!(
+    temp::AbstractVector{T},
+    network::ComparatorNetwork{N},
+    x::NTuple{X,T},
+    y::NTuple{Y,T},
+    ::Val{Z},
+) where {N,X,Y,Z,T}
+    max_error = _unsafe_mfadd_relative_error!(
+        temp, network, x, y, Val{Z}())
+    while true
+        new_x = x
+        new_y = y
+        for i = 1:X*BITS_PER_BYTE*sizeof(T)
+            flip_x = _flip_bit(x, i - 1)
+            flip_error = _unsafe_mfadd_relative_error!(
+                temp, network, flip_x, y, Val{Z}())
+            if flip_error > max_error
+                new_x = flip_x
+                max_error = flip_error
+            end
+        end
+        for i = 1:Y*BITS_PER_BYTE*sizeof(T)
+            flip_y = _flip_bit(y, i - 1)
+            flip_error = _unsafe_mfadd_relative_error!(
+                temp, network, x, flip_y, Val{Z}())
+            if flip_error > max_error
+                new_y = flip_y
+                max_error = flip_error
+            end
+        end
+        if (new_x, new_y) === (x, y)
+            return (max_error, x, y)
+        else
+            x = new_x
+            y = new_y
+        end
+    end
+end
+
+
+@inline _vec_slice(data::NTuple{N,Vec{M,T}}, i::Int) where {M,N,T} =
+    ntuple(j -> (@inbounds data[j][i]), Val{N}())
+
+
+function find_worst_case_mfadd_inputs(
+    network::ComparatorNetwork{N},
+    ::Val{X},
+    ::Val{Y},
+    ::Val{Z},
+    ::Val{M},
+    duration_ns::UInt64,
+) where {N,X,Y,Z,M}
+    @assert X + Y == N
+    @assert 0 <= Z <= N
+    if Z == N
+        return (zero(Float64), 0,
+            ntuple(_ -> zero(Float64), Val{X}()),
+            ntuple(_ -> zero(Float64), Val{Y}()))
+    end
+    start_ns = time_ns()
+    max_error = zero(Float64)
+    worst_case_x = ntuple(_ -> zero(Float64), Val{X}())
+    worst_case_y = ntuple(_ -> zero(Float64), Val{Y}())
+    count = 0
+    temp_vector = Vector{Vec{M,Float64}}(undef, N)
+    temp_scalar = Vector{Float64}(undef, N)
+    while true
+        x = _rand_vec_mf64(Val{M}(), Val{X}())
+        y = _rand_vec_mf64(Val{M}(), Val{Y}())
+        data = riffle(x, y)
+        @simd ivdep for i = 1:N
+            @inbounds temp_vector[i] = data[i]
+        end
+        _unsafe_run_comparator_network!(temp_vector, network, two_sum)
+        head = ntuple(i -> (@inbounds temp_vector[i]), Val{Z}())
+        normalized_head = alternating_normalize(head)
+        if !(head === normalized_head)
+            @inbounds for i = 1:M
+                head_slice = _vec_slice(head, i)
+                normalized_slice = _vec_slice(normalized_head, i)
+                count += 1
+                if !(head_slice === normalized_slice)
+                    return (one(Float64), count,
+                        _vec_slice(x, i), _vec_slice(y, i))
+                end
+            end
+        end
+        tail = ntuple(i -> (@inbounds temp_vector[Z+i]), Val{N - Z}())
+        normalized_tail = alternating_normalize(tail)
+        relative_error = abs(first(normalized_tail) / first(normalized_head))
+        @inbounds for i = 1:M
+            if relative_error[i] > max_error
+                max_error, worst_case_x, worst_case_y =
+                    _unsafe_optimize_mfadd_relative_error!(temp_scalar,
+                        network, _vec_slice(x, i), _vec_slice(y, i), Val{Z}())
+            end
+        end
+        count += M
+        if time_ns() - start_ns >= duration_ns
+            return (max_error, count, worst_case_x, worst_case_y)
+        end
+    end
 end
 
 
