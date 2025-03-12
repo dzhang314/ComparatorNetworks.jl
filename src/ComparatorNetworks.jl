@@ -848,7 +848,7 @@ end
 ######################################################### TEST CASE OPTIMIZATION
 
 
-export find_worst_case_mfadd_inputs
+export optimize_mfadd_relative_error, find_worst_case_mfadd_inputs
 
 
 @inline function _flip_bit(x::T, n::Int) where {T}
@@ -879,10 +879,7 @@ end
     ::Val{Z},
 ) where {N,X,Y,Z,T}
     @assert X + Y == N
-    @assert 0 <= Z <= N
-    if Z == N
-        return zero(T)
-    end
+    @assert 0 < Z <= N
     data = riffle(x, y)
     @simd ivdep for i = 1:N
         @inbounds temp[i] = data[i]
@@ -890,11 +887,16 @@ end
     _unsafe_run_comparator_network!(temp, network, two_sum)
     head = ntuple(i -> (@inbounds temp[i]), Val{Z}())
     normalized_head = alternating_normalize(head)
-    if !(head === normalized_head)
+    if head !== normalized_head
         return one(T)
     end
     tail = ntuple(i -> (@inbounds temp[Z+i]), Val{N - Z}())
     normalized_tail = alternating_normalize(tail)
+    first_kept = abs(first(normalized_head))
+    first_discarded = abs(first(normalized_tail))
+    if !(first_discarded < first_kept)
+        return one(T)
+    end
     return abs(first(normalized_tail) / first(normalized_head))
 end
 
@@ -913,20 +915,24 @@ end
         new_y = y
         for i = 1:X*BITS_PER_BYTE*sizeof(T)
             flip_x = alternating_normalize(_flip_bit(x, i - 1))
-            flip_error = _unsafe_mfadd_relative_error!(
-                temp, network, flip_x, y, Val{Z}())
-            if flip_error > max_error
-                new_x = flip_x
-                max_error = flip_error
+            if all(isfinite, flip_x)
+                flip_error = _unsafe_mfadd_relative_error!(
+                    temp, network, flip_x, y, Val{Z}())
+                if flip_error > max_error
+                    new_x = flip_x
+                    max_error = flip_error
+                end
             end
         end
         for i = 1:Y*BITS_PER_BYTE*sizeof(T)
             flip_y = alternating_normalize(_flip_bit(y, i - 1))
-            flip_error = _unsafe_mfadd_relative_error!(
-                temp, network, x, flip_y, Val{Z}())
-            if flip_error > max_error
-                new_y = flip_y
-                max_error = flip_error
+            if all(isfinite, flip_y)
+                flip_error = _unsafe_mfadd_relative_error!(
+                    temp, network, x, flip_y, Val{Z}())
+                if flip_error > max_error
+                    new_y = flip_y
+                    max_error = flip_error
+                end
             end
         end
         if (new_x, new_y) === (x, y)
@@ -936,6 +942,17 @@ end
             y = new_y
         end
     end
+end
+
+
+function optimize_mfadd_relative_error(
+    network::ComparatorNetwork{N},
+    x::NTuple{X,T},
+    y::NTuple{Y,T},
+    ::Val{Z},
+) where {N,X,Y,Z,T}
+    return _unsafe_optimize_mfadd_relative_error!(
+        Vector{T}(undef, N), network, x, y, Val{Z}())
 end
 
 
@@ -952,12 +969,7 @@ function find_worst_case_mfadd_inputs(
     duration_ns::UInt64,
 ) where {N,X,Y,Z,M}
     @assert X + Y == N
-    @assert 0 <= Z <= N
-    if Z == N
-        return (zero(Float64), 0,
-            ntuple(_ -> zero(Float64), Val{X}()),
-            ntuple(_ -> zero(Float64), Val{Y}()))
-    end
+    @assert 0 < Z <= N
     start_ns = time_ns()
     max_error = zero(Float64)
     worst_case_x = ntuple(_ -> zero(Float64), Val{X}())
@@ -975,25 +987,41 @@ function find_worst_case_mfadd_inputs(
         _unsafe_run_comparator_network!(temp_vector, network, two_sum)
         head = ntuple(i -> (@inbounds temp_vector[i]), Val{Z}())
         normalized_head = alternating_normalize(head)
-        if !(head === normalized_head)
+        if head !== normalized_head
             @inbounds for i = 1:M
                 head_slice = _vec_slice(head, i)
                 normalized_slice = _vec_slice(normalized_head, i)
                 count += 1
-                if !(head_slice === normalized_slice)
+                if head_slice !== normalized_slice
                     return (one(Float64), count,
                         _vec_slice(x, i), _vec_slice(y, i))
                 end
             end
+            @assert false
         end
-        tail = ntuple(i -> (@inbounds temp_vector[Z+i]), Val{N - Z}())
-        normalized_tail = alternating_normalize(tail)
-        relative_error = abs(first(normalized_tail) / first(normalized_head))
-        @inbounds for i = 1:M
-            if relative_error[i] > max_error
-                max_error, worst_case_x, worst_case_y =
-                    _unsafe_optimize_mfadd_relative_error!(temp_scalar,
-                        network, _vec_slice(x, i), _vec_slice(y, i), Val{Z}())
+        if Z < N
+            tail = ntuple(i -> (@inbounds temp_vector[Z+i]), Val{N - Z}())
+            normalized_tail = alternating_normalize(tail)
+            first_kept = abs(first(normalized_head))
+            first_discarded = abs(first(normalized_tail))
+            if !all(first_discarded < first_kept)
+                @inbounds for i = 1:M
+                    count += 1
+                    if !(first_discarded[i] < first_kept[i])
+                        return (one(Float64), count,
+                            _vec_slice(x, i), _vec_slice(y, i))
+                    end
+                end
+                @assert false
+            end
+            relative_error = first_discarded / first_kept
+            @inbounds for i = 1:M
+                if relative_error[i] > max_error
+                    max_error, worst_case_x, worst_case_y =
+                        _unsafe_optimize_mfadd_relative_error!(
+                            temp_scalar, network,
+                            _vec_slice(x, i), _vec_slice(y, i), Val{Z}())
+                end
             end
         end
         count += M
