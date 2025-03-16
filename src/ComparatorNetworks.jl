@@ -848,27 +848,8 @@ end
 ######################################################### TEST CASE OPTIMIZATION
 
 
-export optimize_mfadd_relative_error, find_worst_case_mfadd_inputs
-
-
-@inline function _flip_bit(x::T, n::Int) where {T}
-    u = reinterpret(Unsigned, x)
-    return reinterpret(T, xor(u, one(typeof(u)) << n))
-end
-
-
-const BITS_PER_BYTE = 8
-@assert BITS_PER_BYTE * sizeof(UInt32) == 32
-@assert BITS_PER_BYTE * sizeof(UInt64) == 64
-
-
-@inline function _flip_bit(x::NTuple{N,T}, n::Int) where {N,T}
-    bit_size = BITS_PER_BYTE * sizeof(T)
-    item_index, bit_index = divrem(n, bit_size)
-    item_index += 1
-    return @inbounds Base.setindex(
-        x, _flip_bit(x[item_index], bit_index), item_index)
-end
+export mfadd_relative_error, optimize_mfadd_relative_error,
+    find_worst_case_mfadd_inputs
 
 
 @inline function _unsafe_mfadd_relative_error!(
@@ -894,10 +875,42 @@ end
     normalized_tail = alternating_normalize(tail)
     first_kept = abs(first(normalized_head))
     first_discarded = abs(first(normalized_tail))
-    if !(first_discarded < first_kept)
+    if iszero(first_kept) & iszero(first_discarded)
+        return zero(T)
+    elseif first_discarded < first_kept
+        return first_discarded / first_kept
+    else
         return one(T)
     end
-    return abs(first(normalized_tail) / first(normalized_head))
+end
+
+
+mfadd_relative_error(
+    network::ComparatorNetwork{N},
+    x::NTuple{X,T},
+    y::NTuple{Y,T},
+    ::Val{Z},
+) where {N,X,Y,Z,T} = _unsafe_mfadd_relative_error!(
+    Vector{T}(undef, N), network, x, y, Val{Z}())
+
+
+@inline function _flip_bit(x::T, n::Int) where {T}
+    u = reinterpret(Unsigned, x)
+    return reinterpret(T, xor(u, one(typeof(u)) << n))
+end
+
+
+const BITS_PER_BYTE = 8
+@assert BITS_PER_BYTE * sizeof(UInt32) == 32
+@assert BITS_PER_BYTE * sizeof(UInt64) == 64
+
+
+@inline function _flip_bit(x::NTuple{N,T}, n::Int) where {N,T}
+    bit_size = BITS_PER_BYTE * sizeof(T)
+    item_index, bit_index = divrem(n, bit_size)
+    item_index += 1
+    return @inbounds Base.setindex(
+        x, _flip_bit(x[item_index], bit_index), item_index)
 end
 
 
@@ -917,7 +930,7 @@ end
             flip_x = alternating_normalize(_flip_bit(x, i - 1))
             if all(isfinite, flip_x)
                 flip_error = _unsafe_mfadd_relative_error!(
-                    temp, network, flip_x, y, Val{Z}())
+                    temp, network, flip_x, new_y, Val{Z}())
                 if flip_error > max_error
                     new_x = flip_x
                     max_error = flip_error
@@ -928,14 +941,14 @@ end
             flip_y = alternating_normalize(_flip_bit(y, i - 1))
             if all(isfinite, flip_y)
                 flip_error = _unsafe_mfadd_relative_error!(
-                    temp, network, x, flip_y, Val{Z}())
+                    temp, network, new_x, flip_y, Val{Z}())
                 if flip_error > max_error
                     new_y = flip_y
                     max_error = flip_error
                 end
             end
         end
-        if (new_x, new_y) === (x, y)
+        if (new_x === x) & (new_y === y)
             return (max_error, x, y)
         else
             x = new_x
@@ -945,15 +958,13 @@ end
 end
 
 
-function optimize_mfadd_relative_error(
+optimize_mfadd_relative_error(
     network::ComparatorNetwork{N},
     x::NTuple{X,T},
     y::NTuple{Y,T},
     ::Val{Z},
-) where {N,X,Y,Z,T}
-    return _unsafe_optimize_mfadd_relative_error!(
-        Vector{T}(undef, N), network, x, y, Val{Z}())
-end
+) where {N,X,Y,Z,T} = _unsafe_optimize_mfadd_relative_error!(
+    Vector{T}(undef, N), network, x, y, Val{Z}())
 
 
 @inline _vec_slice(data::NTuple{N,Vec{M,T}}, i::Int) where {M,N,T} =
@@ -1029,6 +1040,47 @@ function find_worst_case_mfadd_inputs(
             return (max_error, count, worst_case_x, worst_case_y)
         end
     end
+end
+
+
+################################################################################
+
+
+export greedy_hitting_set
+
+
+function greedy_hitting_set(sets::AbstractVector{<:AbstractSet{T}}) where {T}
+    # Given sets S_1, ..., S_n, select items x_1, ..., x_m from those sets
+    # such that each set S_i contains at least one selected item x_j.
+    # It is NP-complete to find the optimal selection that minimizes m.
+    # This function implements a greedy approximation strategy.
+    @assert isbitstype(T)
+    hit_sets = Dict{T,BitSet}()
+    for (i, set) in enumerate(sets)
+        for item in set
+            if !haskey(hit_sets, item)
+                hit_sets[item] = BitSet()
+            end
+            push!(hit_sets[item], i)
+        end
+    end
+    result = T[]
+    while !isempty(hit_sets)
+        count, item = findmax(length, hit_sets)
+        if iszero(count)
+            break
+        end
+        push!(result, item)
+        for index in hit_sets[item]
+            for other_item in sets[index]
+                if other_item !== item
+                    delete!(hit_sets[other_item], index)
+                end
+            end
+        end
+        delete!(hit_sets, item)
+    end
+    return result
 end
 
 
