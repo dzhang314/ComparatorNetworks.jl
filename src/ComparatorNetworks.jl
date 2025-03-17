@@ -872,6 +872,9 @@ export mfadd_relative_error, optimize_mfadd_relative_error,
     if head !== normalized_head
         return one(T)
     end
+    if Z == N
+        return zero(T)
+    end
     tail = ntuple(i -> (@inbounds temp[Z+i]), Val{N - Z}())
     normalized_tail = alternating_normalize(tail)
     first_kept = abs(first(normalized_head))
