@@ -32,19 +32,29 @@ end
 
 
 @inline Base.length(network::ComparatorNetwork{N}) where {N} =
-    @inline length(network.comparators)
+    length(network.comparators)
 @inline Base.:(==)(a::ComparatorNetwork{N}, b::ComparatorNetwork{N}) where {N} =
-    @inline (a.comparators == b.comparators)
+    (a.comparators == b.comparators)
 @inline Base.copy(network::ComparatorNetwork{N}) where {N} =
-    @inline ComparatorNetwork{N}(network.comparators)
+    ComparatorNetwork{N}(network.comparators)
 @inline Base.hash(network::ComparatorNetwork{N}, h::UInt) where {N} =
-    @inline hash(network.comparators, hash(N, h))
-@inline Base.isless(
+    hash(network.comparators, hash(N, h))
+
+
+function Base.isless(
     a::ComparatorNetwork{M},
     b::ComparatorNetwork{N},
-) where {M,N} = @inline isless(
-    (M, length(a.comparators), a.comparators),
-    (N, length(b.comparators), b.comparators))
+) where {M,N}
+    if M != N
+        return isless(M, N)
+    end
+    len_a = length(a.comparators)
+    len_b = length(b.comparators)
+    if len_a != len_b
+        return isless(len_a, len_b)
+    end
+    return isless(a.comparators, b.comparators)
+end
 
 
 ############################################################## DEPTH COMPUTATION
@@ -118,36 +128,6 @@ function _is_valid_ssa(
         end
     end
     return issubset(outputs, computed)
-end
-
-
-function _code_depth(
-    code::AbstractVector{Instruction{T}},
-    outputs::AbstractVector{T},
-    inputs::AbstractVector{T},
-) where {T}
-    generation = Dict{T,Int}()
-    for input in inputs
-        generation[input] = 0
-    end
-    for instr in code
-        gen = 0
-        for input in instr.inputs
-            @assert haskey(generation, input)
-            gen = max(gen, generation[input])
-        end
-        gen += 1
-        for output in instr.outputs
-            @assert !haskey(generation, output)
-            generation[output] = gen
-        end
-    end
-    result = 0
-    for output in outputs
-        @assert haskey(generation, output)
-        result = max(result, generation[output])
-    end
-    return result
 end
 
 
@@ -305,6 +285,8 @@ export run_comparator_network!, run_comparator_network
     network::ComparatorNetwork{N},
     comparator::C,
 ) where {N,T,C}
+    # Assumes: data has indices 1:N.
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     for (i, j) in network.comparators
         @inbounds @inline data[i], data[j] = comparator(data[i], data[j])
     end
@@ -323,7 +305,7 @@ end
 end
 
 
-@inline function run_comparator_network(
+function run_comparator_network(
     input::NTuple{N,T},
     network::ComparatorNetwork{N},
     comparator::C,
@@ -344,7 +326,7 @@ function generate_code(network::ComparatorNetwork{N}, comparator) where {N}
     push!(body, Expr(:meta, :inline))
     push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
     for (i, j) in network.comparators
-        @assert i < j
+        @assert 1 <= i < j <= N
         push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[j]),
             Expr(:call, comparator, xs[i], xs[j])))
     end
@@ -382,6 +364,8 @@ export test_comparator_network, prune!, generate_comparator_network,
     test_cases::AbstractVector{NTuple{N,T}},
     property::P,
 ) where {N,T,C,P}
+    # Assumes: temp has indices 1:N.
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     for test_case in test_cases
         @simd ivdep for i = 1:N
             @inbounds temp[i] = test_case[i]
@@ -396,7 +380,7 @@ export test_comparator_network, prune!, generate_comparator_network,
 end
 
 
-@inline test_comparator_network(
+test_comparator_network(
     network::ComparatorNetwork{N},
     comparator::C,
     test_cases::AbstractVector{NTuple{N,T}},
@@ -433,7 +417,7 @@ function _unsafe_prune!(
 end
 
 
-@inline prune!(
+prune!(
     network::ComparatorNetwork{N},
     comparator::C,
     test_cases::AbstractVector{NTuple{N,T}},
@@ -470,7 +454,7 @@ function _unsafe_generate_comparator_network!(
 end
 
 
-@inline generate_comparator_network(
+generate_comparator_network(
     comparator::C,
     test_cases::AbstractVector{NTuple{N,T}},
     property::P,
@@ -536,7 +520,7 @@ function _unsafe_mutate_comparator_network!(
 end
 
 
-@inline mutate_comparator_network!(
+mutate_comparator_network!(
     network::ComparatorNetwork{N},
     comparator::C,
     test_cases::AbstractVector{NTuple{N,T}},
