@@ -1,5 +1,6 @@
 module Output
 
+using Base: IEEEFloat
 using Printf: @sprintf
 
 using ..ComparatorNetworks: ComparatorNetwork
@@ -10,43 +11,62 @@ using ..ComparatorNetworks: ComparatorNetwork
 export hexfloat
 
 
-function hexfloat(x::Float32)
-    # TODO: Subnormal numbers should be printed with leading zeros.
-    @assert isfinite(x)
-    @assert precision(x) == 24
-    s = @sprintf("%+.6A", x)
-    @assert length(s) >= 14
-    @assert (s[1] == '+') | (s[1] == '-')
+function hexfloat(x::IEEEFloat)
+
+    if !isfinite(x)
+        throw(DomainError(x, "Cannot be NaN or Inf."))
+    end
+
+    m = cld(precision(x) - 1, 4) # four bits per hex digit
+
+    is_subnormal = issubnormal(x)
+    if is_subnormal
+        y = copysign(floatmin(x), x)
+        z = x + y
+        @assert x == z - y
+        s = @sprintf("%+.*A", m, z)
+    else
+        s = @sprintf("%+.*A", m, x)
+    end
+    @assert length(s) >= m + 8
+
+    sign_char = s[1]
+    @assert (sign_char == '+') | (sign_char == '-')
+
     @assert s[2] == '0'
     @assert s[3] == 'X'
-    @assert (s[4] == '0') | (s[4] == '1')
-    @assert s[5] == '.'
-    @assert all(('0' <= s[i] <= '9') | ('A' <= s[i] <= 'F') for i = 6:11)
-    @assert s[12] == 'P'
-    @assert (s[13] == '+') | (s[13] == '-')
-    @assert all('0' <= s[i] <= '9' for i = 14:length(s))
-    return @sprintf("%c0x%c.%sp%+04d",
-        s[1], s[4], s[6:11], parse(Int, s[13:end]))
-end
 
+    if is_subnormal
+        @assert s[4] == '1'
+        leading_char = '0'
+    else
+        leading_char = s[4]
+        @assert (leading_char == '0') | (leading_char == '1')
+    end
 
-function hexfloat(x::Float64)
-    # TODO: Subnormal numbers should be printed with leading zeros.
-    @assert isfinite(x)
-    @assert precision(x) == 53
-    s = @sprintf("%+.13A", x)
-    @assert length(s) >= 21
-    @assert (s[1] == '+') | (s[1] == '-')
-    @assert s[2] == '0'
-    @assert s[3] == 'X'
-    @assert (s[4] == '0') | (s[4] == '1')
     @assert s[5] == '.'
-    @assert all(('0' <= s[i] <= '9') | ('A' <= s[i] <= 'F') for i = 6:18)
-    @assert s[19] == 'P'
-    @assert (s[20] == '+') | (s[20] == '-')
-    @assert all('0' <= s[i] <= '9' for i = 21:length(s))
-    return @sprintf("%c0x%c.%sp%+05d",
-        s[1], s[4], s[6:18], parse(Int, s[20:end]))
+
+    mantissa_str = s[6:m+5]
+    @assert all(('0' <= c <= '9') | ('A' <= c <= 'F') for c in mantissa_str)
+
+    @assert s[m+6] == 'P'
+
+    exponent_str = s[m+7:end]
+    @assert (exponent_str[1] == '+') | (exponent_str[1] == '-')
+    @assert all('0' <= c <= '9' for c in exponent_str[2:end])
+
+    exponent_max = max(abs(exponent(floatmin(x))), abs(exponent(floatmax(x))))
+    exponent_acc = 1
+    exponent_width = 1
+    while exponent_max >= exponent_acc
+        exponent_acc *= 10
+        exponent_width += 1
+    end
+
+    result = @sprintf("%c0x%c.%sp%+0*d", sign_char, leading_char,
+        mantissa_str, exponent_width, parse(Int, exponent_str))
+    @assert parse(typeof(x), result) == x
+    return result
 end
 
 
