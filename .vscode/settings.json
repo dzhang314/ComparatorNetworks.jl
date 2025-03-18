@@ -5,6 +5,7 @@
         "bitsort",
         "bitsorted",
         "FPANs",
+        "hexfloat",
         "ivdep",
         "mfadd",
         "sprintf",

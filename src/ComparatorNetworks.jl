@@ -1072,6 +1072,57 @@ function greedy_hitting_set(sets::AbstractVector{<:AbstractSet{T}}) where {T}
 end
 
 
+################################################################# TEXTUAL OUTPUT
+
+
+export hexfloat
+
+
+function hexfloat(x::Float32)
+    s = @sprintf("%+.6A", x)
+    @assert length(s) >= 14
+    @assert (s[1] == '+') | (s[1] == '-')
+    @assert s[2] == '0'
+    @assert s[3] == 'X'
+    @assert (s[4] == '0') | (s[4] == '1')
+    @assert s[5] == '.'
+    for i = 6:11
+        @assert ('0' <= s[i] <= '9') | ('A' <= s[i] <= 'F')
+    end
+    @assert s[12] == 'P'
+    @assert (s[13] == '+') | (s[13] == '-')
+    for i = 14:length(s)
+        @assert '0' <= s[i] <= '9'
+    end
+    return @sprintf("%c0x%c.%sp%+04d",
+        s[1], s[4], s[6:11], parse(Int, s[13:end]))
+end
+
+
+function hexfloat(x::Float64)
+    s = @sprintf("%+.13A", x)
+    @assert length(s) >= 21
+    @assert (s[1] == '+') | (s[1] == '-')
+    @assert s[2] == '0'
+    @assert s[3] == 'X'
+    @assert (s[4] == '0') | (s[4] == '1')
+    @assert s[5] == '.'
+    for i = 6:18
+        @assert ('0' <= s[i] <= '9') | ('A' <= s[i] <= 'F')
+    end
+    @assert s[19] == 'P'
+    @assert (s[20] == '+') | (s[20] == '-')
+    for i = 21:length(s)
+        @assert '0' <= s[i] <= '9'
+    end
+    return @sprintf("%c0x%c.%sp%+05d",
+        s[1], s[4], s[6:18], parse(Int, s[20:end]))
+end
+
+
+hexfloat(t::Tuple) = '(' * join(hexfloat.(t), ", ") * ')'
+
+
 ############################################################### GRAPHICAL OUTPUT
 
 
