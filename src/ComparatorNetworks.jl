@@ -70,6 +70,12 @@ function Base.isless(
 end
 
 
+include("Output.jl")
+using .Output
+export hexfloat
+export svg_string
+
+
 ############################################################## DEPTH COMPUTATION
 
 
@@ -331,8 +337,7 @@ end
 ################################################## COMPARATOR NETWORK GENERATION
 
 
-export test_comparator_network, prune!, generate_comparator_network,
-    mutate_comparator_network!
+export test_comparator_network, prune!, generate_comparator_network
 
 
 @inline function _unsafe_test_comparator_network!(
@@ -440,76 +445,9 @@ generate_comparator_network(
     Vector{T}(undef, N), comparator, test_cases, property)
 
 
-function _unsafe_mutate_comparator_network!(
-    temp::AbstractVector{T},
-    network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    insert_weight::Int,
-    delete_weight::Int,
-    swap_weight::Int,
-    duration_ns::UInt64,
-) where {N,T,C,P}
-    num_comparators = length(network.comparators)
-    w1 = insert_weight
-    w2 = w1 + delete_weight
-    w3 = w2 + swap_weight
-    start_ns = time_ns()
-    while true
-        w = rand(1:w3)
-        if w <= w1 # insert
-            i = rand(1:num_comparators+1)
-            insert!(network.comparators, i, _random_comparator(Val{N}()))
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
-                return network
-            end
-            deleteat!(network.comparators, i)
-        elseif (w <= w2) & (num_comparators >= 1) # delete
-            i = rand(1:num_comparators)
-            @inbounds original_comparator = network.comparators[i]
-            deleteat!(network.comparators, i)
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
-                return network
-            end
-            insert!(network.comparators, i, original_comparator)
-        elseif (w <= w3) & (num_comparators >= 2) # swap
-            i = rand(1:num_comparators)
-            j = rand(1:num_comparators-1)
-            j += (j >= i)
-            @inbounds network.comparators[i], network.comparators[j] =
-                network.comparators[j], network.comparators[i]
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
-                return network
-            end
-            @inbounds network.comparators[i], network.comparators[j] =
-                network.comparators[j], network.comparators[i]
-        end
-        if time_ns() - start_ns >= duration_ns
-            return network
-        end
-    end
-end
-
-
-mutate_comparator_network!(
-    network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    insert_weight::Int,
-    delete_weight::Int,
-    swap_weight::Int,
-    duration_ns::UInt64,
-) where {N,T,C,P} = _unsafe_mutate_comparator_network!(
-    Vector{T}(undef, N), network, comparator, test_cases, property,
-    insert_weight, delete_weight, swap_weight, duration_ns)
+include("Annealing.jl")
+using .Annealing
+export pareto_dominates, pareto_push!, optimize_comparator_network
 
 
 ######################################################### TEST CASE MANIPULATION
@@ -692,9 +630,9 @@ function find_worst_case_mfadd_inputs(
     ::Val{M},
     duration_ns::UInt64,
 ) where {N,X,Y,Z,M}
+    start_ns = time_ns()
     @assert X + Y == N
     @assert 0 < Z <= N
-    start_ns = time_ns()
     max_error = zero(Float64)
     worst_case_x = ntuple(_ -> zero(Float64), Val{X}())
     worst_case_y = ntuple(_ -> zero(Float64), Val{Y}())
@@ -798,10 +736,5 @@ end
 
 
 ################################################################################
-
-include("Output.jl")
-using .Output
-export hexfloat
-export svg_string
 
 end # module ComparatorNetworks
