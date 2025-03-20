@@ -6,10 +6,9 @@ using SIMD: Vec
 include("Comparators.jl")
 using .Comparators
 export bitminmax, two_sum, annihilating_maxmin
-export top_down_bitbubble, top_down_accumulate, top_down_bitsort,
-    top_down_normalize, bottom_up_bitbubble, bottom_up_accumulate,
-    bottom_up_bitsort, bottom_up_normalize, alternating_bitbubble,
-    alternating_accumulate, alternating_bitsort, alternating_normalize
+export forward_pass, forward_fixed_point,
+    backward_pass, backward_fixed_point,
+    riffle_pass, riffle_fixed_point
 export isbitsorted
 
 include("TestCaseGenerators.jl")

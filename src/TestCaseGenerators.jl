@@ -2,7 +2,7 @@ module TestCaseGenerators
 
 using SIMD: Vec
 
-using ..Comparators: alternating_normalize
+using ..Comparators: two_sum, riffle_fixed_point
 
 #################################################### BINARY TEST CASE GENERATION
 
@@ -244,7 +244,7 @@ end
 
 
 @inline rand_vec_mf64(::Val{M}, ::Val{N}) where {M,N} =
-    alternating_normalize(ntuple(_ -> rand_vec_f64(Val{M}()), Val{N}()))
+    riffle_fixed_point(two_sum, ntuple(_ -> rand_vec_f64(Val{M}()), Val{N}()))
 
 
 ################################################ MULTIFLOAT TEST CASE GENERATION

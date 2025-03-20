@@ -35,23 +35,22 @@ end
 ############################################################## COMPARATOR PASSES
 
 
-export top_down_bitbubble, top_down_accumulate, top_down_bitsort,
-    top_down_normalize, bottom_up_bitbubble, bottom_up_accumulate,
-    bottom_up_bitsort, bottom_up_normalize, alternating_bitbubble,
-    alternating_accumulate, alternating_bitsort, alternating_normalize
+export forward_pass, forward_fixed_point,
+    backward_pass, backward_fixed_point,
+    riffle_pass, riffle_fixed_point
 
 
-function _inline_pass_expr(comparator::Symbol, method::Symbol, N::Int)
+function _inline_pass_expr(comparator, method::Symbol, N::Int)
     xs = [Symbol('x', i) for i in Base.OneTo(N)]
     body = Expr[]
     push!(body, Expr(:meta, :inline))
     push!(body, Expr(:(=), Expr(:tuple, xs...), :x))
-    if method == :top_down
+    if method == :forward
         for i in 1:N-1
             push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
                 Expr(:call, comparator, xs[i], xs[i+1])))
         end
-    elseif method == :bottom_up
+    elseif method == :backward
         for i = N-1:-1:1
             push!(body, Expr(:(=), Expr(:tuple, xs[i], xs[i+1]),
                 Expr(:call, comparator, xs[i], xs[i+1])))
@@ -73,19 +72,20 @@ function _inline_pass_expr(comparator::Symbol, method::Symbol, N::Int)
 end
 
 
-@generated function top_down_bitbubble(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:bitminmax, :top_down, N)
+@generated function forward_pass(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
+    return _inline_pass_expr(C.instance, :forward, N)
 end
 
 
-@generated function top_down_accumulate(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:two_sum, :top_down, N)
-end
-
-
-@inline function top_down_bitsort(x::NTuple{N,T}) where {N,T}
+@inline function forward_fixed_point(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
     while true
-        x_next = top_down_bitbubble(x)
+        x_next = forward_pass(comparator, x)
         if x_next === x
             return x
         end
@@ -94,9 +94,20 @@ end
 end
 
 
-@inline function top_down_normalize(x::NTuple{N,T}) where {N,T}
+@generated function backward_pass(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
+    return _inline_pass_expr(C.instance, :backward, N)
+end
+
+
+@inline function backward_fixed_point(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
     while true
-        x_next = top_down_accumulate(x)
+        x_next = backward_pass(comparator, x)
         if x_next === x
             return x
         end
@@ -105,62 +116,20 @@ end
 end
 
 
-@generated function bottom_up_bitbubble(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:bitminmax, :bottom_up, N)
+@generated function riffle_pass(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
+    return _inline_pass_expr(C.instance, :riffle, N)
 end
 
 
-@generated function bottom_up_accumulate(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:two_sum, :bottom_up, N)
-end
-
-
-@inline function bottom_up_bitsort(x::NTuple{N,T}) where {N,T}
+@inline function riffle_fixed_point(
+    comparator::C,
+    x::NTuple{N,T},
+) where {N,T,C}
     while true
-        x_next = bottom_up_bitbubble(x)
-        if x_next === x
-            return x
-        end
-        x = x_next
-    end
-end
-
-
-@inline function bottom_up_normalize(x::NTuple{N,T}) where {N,T}
-    while true
-        x_next = bottom_up_accumulate(x)
-        if x_next === x
-            return x
-        end
-        x = x_next
-    end
-end
-
-
-@generated function alternating_bitbubble(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:bitminmax, :riffle, N)
-end
-
-
-@generated function alternating_accumulate(x::NTuple{N,T}) where {N,T}
-    return _inline_pass_expr(:two_sum, :riffle, N)
-end
-
-
-@inline function alternating_bitsort(x::NTuple{N,T}) where {N,T}
-    while true
-        x_next = alternating_bitbubble(x)
-        if x_next === x
-            return x
-        end
-        x = x_next
-    end
-end
-
-
-@inline function alternating_normalize(x::NTuple{N,T}) where {N,T}
-    while true
-        x_next = alternating_accumulate(x)
+        x_next = riffle_pass(comparator, x)
         if x_next === x
             return x
         end

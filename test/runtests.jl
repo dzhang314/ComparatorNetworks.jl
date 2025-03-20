@@ -1,5 +1,5 @@
-using ComparatorNetworks: top_down_bitsort, bottom_up_bitsort, riffle_bitsort,
-    all_bit_vectors
+using ComparatorNetworks: all_bit_vectors, bitminmax,
+    forward_fixed_point, backward_fixed_point, riffle_fixed_point
 using SIMD: Vec
 using Test: @testset, @test
 
@@ -191,31 +191,31 @@ using Test: @testset, @test
             0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF,
             0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF)))
 
-    @test top_down_bitsort(all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
-    @test top_down_bitsort(all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
-    @test top_down_bitsort(all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
-    @test top_down_bitsort(all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
-    @test top_down_bitsort(all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
-    @test top_down_bitsort(all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
-    @test top_down_bitsort(all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
-    @test top_down_bitsort(all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
+    @test forward_fixed_point(bitminmax, all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
 
-    @test bottom_up_bitsort(all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
-    @test bottom_up_bitsort(all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
-    @test bottom_up_bitsort(all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
-    @test bottom_up_bitsort(all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
-    @test bottom_up_bitsort(all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
-    @test bottom_up_bitsort(all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
-    @test bottom_up_bitsort(all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
-    @test bottom_up_bitsort(all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
+    @test backward_fixed_point(bitminmax, all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
 
-    @test riffle_bitsort(all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
-    @test riffle_bitsort(all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
-    @test riffle_bitsort(all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
-    @test riffle_bitsort(all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
-    @test riffle_bitsort(all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
-    @test riffle_bitsort(all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
-    @test riffle_bitsort(all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
-    @test riffle_bitsort(all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{3}())) === SORTED_BIT_VECTORS_3
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{4}())) === SORTED_BIT_VECTORS_4
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{5}())) === SORTED_BIT_VECTORS_5
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{6}())) === SORTED_BIT_VECTORS_6
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{7}())) === SORTED_BIT_VECTORS_7
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{8}())) === SORTED_BIT_VECTORS_8
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{9}())) === SORTED_BIT_VECTORS_9
+    @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
 
 end
