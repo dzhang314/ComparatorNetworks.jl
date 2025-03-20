@@ -1,7 +1,25 @@
-using ComparatorNetworks: all_bit_vectors, bitminmax,
-    forward_fixed_point, backward_fixed_point, riffle_fixed_point
+using ComparatorNetworks
 using SIMD: Vec
 using Test: @testset, @test
+
+################################################################################
+
+
+@testset "canonization" begin
+
+    @test canonize(ComparatorNetwork{0}([])) == ComparatorNetwork{0}([])
+
+    network_a = ComparatorNetwork{4}([
+        (2, 3), (1, 4), (2, 3), (1, 4), (2, 4), (1, 3), (1, 3), (2, 4),
+    ])
+    network_b = ComparatorNetwork{4}([(1, 4), (2, 3), (1, 3), (2, 4)])
+    @test canonize(network_a) == network_b
+    @test canonize(network_b) == network_b
+
+end
+
+
+################################################################################
 
 
 @testset "bitsort" begin
@@ -219,3 +237,6 @@ using Test: @testset, @test
     @test riffle_fixed_point(bitminmax, all_bit_vectors(Val{10}())) === SORTED_BIT_VECTORS_10
 
 end
+
+
+################################################################################
