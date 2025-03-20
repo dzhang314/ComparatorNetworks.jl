@@ -1,15 +1,17 @@
 module Comparators
 
+using SIMD: Vec, vifelse
+
 ########################################################### COMPARATOR FUNCTIONS
 
 
-export bitminmax, two_sum
+export bitminmax, two_sum, annihilating_maxmin
 
 
-@inline bitminmax(x, y) = (x & y, x | y)
+@inline bitminmax(x::T, y::T) where {T} = (x & y, x | y)
 
 
-@inline function two_sum(x, y)
+@inline function two_sum(x::T, y::T) where {T}
     s = x + y
     x_prime = s - y
     y_prime = s - x_prime
@@ -18,6 +20,16 @@ export bitminmax, two_sum
     e = delta_x + delta_y
     return (s, e)
 end
+
+
+@inline annihilating_maxmin(x::T, y::T) where {T} = (
+    ifelse(x == y, zero(T), max(x, y)),
+    ifelse(x == y, zero(T), min(x, y)))
+
+
+@inline annihilating_maxmin(x::Vec{N,T}, y::Vec{N,T}) where {N,T} = (
+    vifelse(x == y, zero(Vec{N,T}), max(x, y)),
+    vifelse(x == y, zero(Vec{N,T}), min(x, y)))
 
 
 ############################################################## COMPARATOR PASSES

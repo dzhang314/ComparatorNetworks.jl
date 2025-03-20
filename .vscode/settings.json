@@ -7,9 +7,13 @@
         "hexfloat",
         "isbitsorted",
         "ivdep",
+        "maxmin",
         "mfadd",
+        "mfmul",
+        "multifloat",
         "sprintf",
         "testset",
+        "vifelse",
         "Zhang"
     ]
 }

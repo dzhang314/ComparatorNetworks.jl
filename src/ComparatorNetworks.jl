@@ -5,7 +5,7 @@ using SIMD: Vec
 
 include("Comparators.jl")
 using .Comparators
-export bitminmax, two_sum
+export bitminmax, two_sum, annihilating_maxmin
 export top_down_bitbubble, top_down_accumulate, top_down_bitsort,
     top_down_normalize, bottom_up_bitbubble, bottom_up_accumulate,
     bottom_up_bitsort, bottom_up_normalize, alternating_bitbubble,
@@ -14,8 +14,10 @@ export isbitsorted
 
 include("TestCaseGenerators.jl")
 using .TestCaseGenerators
-using .TestCaseGenerators: _rand_vec_mf64
 export all_bit_vectors
+export coarse_mfadd_test_cases
+export rand_vec_f64, rand_vec_mf64
+export prepare_mfadd_inputs, prepare_mfmul_inputs
 
 ############################################## COMPARATOR NETWORK DATA STRUCTURE
 
@@ -450,49 +452,6 @@ using .Annealing
 export pareto_dominates, pareto_push!, optimize_comparator_network
 
 
-######################################################### TEST CASE MANIPULATION
-
-
-export riffle!, riffle
-
-
-@inline function riffle!(
-    v::AbstractVector{T},
-    x::AbstractVector{T},
-    y::AbstractVector{T},
-) where {T}
-    # Validate array dimensions.
-    Base.require_one_based_indexing(v, x, y)
-    len_x = length(x)
-    len_y = length(y)
-    @assert length(v) == len_x + len_y
-    # Riffle common elements.
-    @simd ivdep for i = 1:min(len_x, len_y)
-        _2i = i + i
-        @inbounds v[_2i-1] = x[i]
-        @inbounds v[_2i] = y[i]
-    end
-    # Append remaining elements.
-    if len_x > len_y
-        copyto!(v, len_y + len_y + 1, x, len_y + 1, len_x - len_y)
-    elseif len_x < len_y
-        copyto!(v, len_x + len_x + 1, y, len_x + 1, len_y - len_x)
-    end
-    return v
-end
-
-
-@generated function riffle(x::NTuple{M,T}, y::NTuple{N,T}) where {M,N,T}
-    xs = [Symbol('x', i) for i in Base.OneTo(M)]
-    ys = [Symbol('y', i) for i in Base.OneTo(N)]
-    vs = riffle!(Vector{Symbol}(undef, M + N), xs, ys)
-    return Expr(:block, Expr(:meta, :inline),
-        Expr(:(=), Expr(:tuple, xs...), :x),
-        Expr(:(=), Expr(:tuple, ys...), :y),
-        Expr(:return, Expr(:tuple, vs...)))
-end
-
-
 ######################################################### TEST CASE OPTIMIZATION
 
 
@@ -640,8 +599,8 @@ function find_worst_case_mfadd_inputs(
     temp_vector = Vector{Vec{M,Float64}}(undef, N)
     temp_scalar = Vector{Float64}(undef, N)
     while true
-        x = _rand_vec_mf64(Val{M}(), Val{X}())
-        y = _rand_vec_mf64(Val{M}(), Val{Y}())
+        x = rand_vec_mf64(Val{M}(), Val{X}())
+        y = rand_vec_mf64(Val{M}(), Val{Y}())
         data = riffle(x, y)
         @simd ivdep for i = 1:N
             @inbounds temp_vector[i] = data[i]
