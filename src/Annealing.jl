@@ -1,7 +1,7 @@
 module Annealing
 
-using ..ComparatorNetworks: ComparatorNetwork, _unsafe_test_comparator_network!,
-    _random_comparator, _unsafe_generate_comparator_network!
+using ..ComparatorNetworks: ComparatorNetwork, AbstractCondition,
+    _random_comparator, generate_comparator_network
 
 ################################################################################
 

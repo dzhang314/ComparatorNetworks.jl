@@ -338,25 +338,70 @@ end
 ################################################## COMPARATOR NETWORK GENERATION
 
 
-export test_comparator_network, prune!, generate_comparator_network
+export AbstractCondition, PassesTest, PassesAllTests
 
 
-@inline function _unsafe_test_comparator_network!(
-    temp::AbstractVector{T},
-    network::ComparatorNetwork{N},
+abstract type AbstractCondition{N} end
+
+
+struct PassesTest{N,T,C,P} <: AbstractCondition{N}
+    test_case::NTuple{N,T}
+    comparator::C
+    property::P
+    buffer::Vector{T}
+end
+
+
+struct PassesAllTests{N,T,C,P} <: AbstractCondition{N}
+    test_cases::Vector{NTuple{N,T}}
+    comparator::C
+    property::P
+    buffer::Vector{T}
+end
+
+
+function PassesTest(
+    test_case::NTuple{N,T},
     comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
     property::P,
 ) where {N,T,C,P}
-    # Assumes: temp has indices 1:N.
-    # Assumes: network is well-formed (comparator indices lie in 1:N).
-    for test_case in test_cases
+    buffer = Vector{T}(undef, N)
+    return PassesTest{N,T,C,P}(test_case, comparator, property, buffer)
+end
+
+
+function PassesAllTests(
+    test_cases::Vector{NTuple{N,T}},
+    comparator::C,
+    property::P,
+) where {N,T,C,P}
+    buffer = Vector{T}(undef, N)
+    return PassesAllTests{N,T,C,P}(test_cases, comparator, property, buffer)
+end
+
+
+function (tester::PassesTest{N,T,C,P})(
+    network::ComparatorNetwork{N},
+) where {N,T,C,P}
+    @simd ivdep for i = 1:N
+        @inbounds tester.buffer[i] = tester.test_case[i]
+    end
+    _unsafe_run_comparator_network!(
+        tester.buffer, network, tester.comparator)
+    return tester.property(tester.buffer)
+end
+
+
+function (tester::PassesAllTests{N,T,C,P})(
+    network::ComparatorNetwork{N},
+) where {N,T,C,P}
+    for test_case in tester.test_cases
         @simd ivdep for i = 1:N
-            @inbounds temp[i] = test_case[i]
+            @inbounds tester.buffer[i] = test_case[i]
         end
-        _unsafe_run_comparator_network!(temp, network, comparator)
-        @inline correct = property(temp)
-        if !correct
+        _unsafe_run_comparator_network!(
+            tester.buffer, network, tester.comparator)
+        if !tester.property(tester.buffer)
             return false
         end
     end
@@ -364,29 +409,25 @@ export test_comparator_network, prune!, generate_comparator_network
 end
 
 
-test_comparator_network(
-    network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-) where {N,T,C,P} = _unsafe_test_comparator_network!(
-    Vector{T}(undef, N), network, comparator, test_cases, property)
+export test_comparator_network, prune!, generate_comparator_network
 
 
-function _unsafe_prune!(
-    temp::AbstractVector{T},
+function prune!(
     network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-) where {N,T,C,P}
+    conditions::AbstractCondition{N}...,
+) where {N}
     while true
         found = false
         for i in shuffle(1:length(network.comparators))
             original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
+            pass = true
+            for condition in conditions
+                if !condition(network)
+                    pass = false
+                    break
+                end
+            end
             if pass
                 found = true
                 break
@@ -401,15 +442,6 @@ function _unsafe_prune!(
 end
 
 
-prune!(
-    network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-) where {N,T,C,P} = _unsafe_prune!(
-    Vector{T}(undef, N), network, comparator, test_cases, property)
-
-
 @inline function _random_comparator(::Val{N}) where {N}
     i = rand(0x01:UInt8(N))
     j = rand(0x01:UInt8(N - 1))
@@ -418,32 +450,29 @@ prune!(
 end
 
 
-function _unsafe_generate_comparator_network!(
-    temp::AbstractVector{T},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-) where {N,T,C,P}
+function generate_comparator_network(
+    conditions::AbstractCondition{N}...,
+) where {N}
     network = ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
     while true
-        pass = _unsafe_test_comparator_network!(
-            temp, network, comparator, test_cases, property)
+        pass = true
+        for condition in conditions
+            if !condition(network)
+                pass = false
+                break
+            end
+        end
         if pass
             break
         else
             push!(network.comparators, _random_comparator(Val{N}()))
         end
     end
-    return _unsafe_prune!(temp, network, comparator, test_cases, property)
+    return prune!(network, conditions...)
 end
 
 
-generate_comparator_network(
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-) where {N,T,C,P} = _unsafe_generate_comparator_network!(
-    Vector{T}(undef, N), comparator, test_cases, property)
+################################################ COMPARATOR NETWORK OPTIMIZATION
 
 
 include("Annealing.jl")
