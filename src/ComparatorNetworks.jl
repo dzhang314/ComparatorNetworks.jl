@@ -297,7 +297,8 @@ end
 
 include("Annealing.jl")
 using .Annealing
-export pareto_dominates, pareto_push!, optimize_comparator_network
+export mutate_comparator_network!, pareto_dominates, pareto_push!,
+    optimize_comparator_network
 
 
 ######################################################### TEST CASE OPTIMIZATION

@@ -1,12 +1,13 @@
 module Annealing
 
-using ..ComparatorNetworks: ComparatorNetwork, AbstractCondition,
+using ..ComparatorNetworks: ComparatorNetwork, depth, AbstractCondition,
     _test_conditions, _random_comparator, generate_comparator_network
 
 ################################################################################
 
 
-export pareto_dominates, pareto_push!, optimize_comparator_network
+export mutate_comparator_network!, pareto_dominates, pareto_push!,
+    optimize_comparator_network
 
 
 function mutate_comparator_network!(
@@ -62,7 +63,7 @@ function mutate_comparator_network!(
 end
 
 
-@inline function pareto_dominates(s, t)
+@inline function pareto_dominates(s::T, t::T) where {T}
     all_le = true
     any_lt = false
     @inbounds for i in eachindex(s, t)
@@ -73,9 +74,13 @@ end
 end
 
 
-function pareto_push!(dict::Dict{K,Set{V}}, key::K, value::V) where {K,V}
+function pareto_push!(
+    dict::AbstractDict{K,<:AbstractSet{V}},
+    key::K,
+    value::V,
+) where {K,V}
     if haskey(dict, key)
-        push!(dict[key], value)
+        push!(dict[key], copy(value))
     else
         worse_keys = K[]
         for other_key in keys(dict)
@@ -88,25 +93,30 @@ function pareto_push!(dict::Dict{K,Set{V}}, key::K, value::V) where {K,V}
         for worse_key in worse_keys
             delete!(dict, worse_key)
         end
-        dict[key] = Set((value,))
+        dict[key] = Set((copy(value),))
     end
     return dict
 end
 
 
-function _unsafe_anneal_comparator_network!(
-    temp_data::AbstractVector{T},
-    temp_network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    scoring_function::S,
-    insert_rate_function::F1,
-    delete_rate_function::F2,
-    swap_rate_function::F3,
-    start_ns::UInt64,
-    duration_ns::UInt64,
-) where {N,T,C,P,S,F1,F2,F3}
+@inline _default_scoring_function(network::ComparatorNetwork{N}) where {N} =
+    (length(network), depth(network))
+
+
+@inline _default_insert_rate_function(::Int) = 1
+
+
+function optimize_comparator_network(
+    network::ComparatorNetwork{N},
+    conditions::AbstractCondition{N}...;
+    scoring_function=_default_scoring_function,
+    insert_rate_function=_default_insert_rate_function,
+    delete_rate_function=sqrt,
+    swap_rate_function=log,
+    duration_ns::Integer,
+) where {N}
+    start_ns = time_ns()
+    temp_network = copy(network)
     initial_score = scoring_function(temp_network)
     result = Dict{typeof(initial_score),Set{ComparatorNetwork{N}}}()
     pareto_push!(result, initial_score, copy(temp_network))
@@ -120,56 +130,35 @@ function _unsafe_anneal_comparator_network!(
             return result
         end
         remaining_ns = duration_ns - elapsed_ns
-        _unsafe_mutate_comparator_network!(
-            temp_data, temp_network, comparator, test_cases, property,
-            insert_weight, delete_weight, swap_weight, remaining_ns)
-        pareto_push!(result, scoring_function(temp_network), copy(temp_network))
+        mutate_comparator_network!(temp_network, conditions...;
+            insert_weight, delete_weight, swap_weight, duration_ns=remaining_ns)
+        pareto_push!(result, scoring_function(temp_network), temp_network)
         t += 1
     end
 end
 
 
 function optimize_comparator_network(
-    network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    scoring_function::S,
-    insert_rate_function::F1,
-    delete_rate_function::F2,
-    swap_rate_function::F3,
-    duration_ns::UInt64,
-) where {N,T,C,P,S,F1,F2,F3}
+    conditions::AbstractCondition{N}...;
+    scoring_function=_default_scoring_function,
+    insert_rate_function=_default_insert_rate_function,
+    delete_rate_function=sqrt,
+    swap_rate_function=log,
+    duration_ns::Integer,
+) where {N}
     start_ns = time_ns()
-    temp_data = Vector{T}(undef, N)
-    temp_network = copy(network)
-    return _unsafe_anneal_comparator_network!(
-        temp_data, temp_network,
-        comparator, test_cases, property, scoring_function,
+    temp_network = generate_comparator_network(conditions...)
+    initial_score = scoring_function(temp_network)
+    result = Dict{typeof(initial_score),Set{ComparatorNetwork{N}}}()
+    pareto_push!(result, initial_score, copy(temp_network))
+    elapsed_ns = time_ns() - start_ns
+    if elapsed_ns >= duration_ns
+        return result
+    end
+    return optimize_comparator_network(temp_network, conditions...;
+        scoring_function,
         insert_rate_function, delete_rate_function, swap_rate_function,
-        start_ns, duration_ns)
-end
-
-
-function optimize_comparator_network(
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    scoring_function::S,
-    insert_rate_function::F1,
-    delete_rate_function::F2,
-    swap_rate_function::F3,
-    duration_ns::UInt64,
-) where {N,T,C,P,S,F1,F2,F3}
-    start_ns = time_ns()
-    temp_data = Vector{T}(undef, N)
-    temp_network = _unsafe_generate_comparator_network!(
-        temp_data, comparator, test_cases, property)
-    return _unsafe_anneal_comparator_network!(
-        temp_data, temp_network,
-        comparator, test_cases, property, scoring_function,
-        insert_rate_function, delete_rate_function, swap_rate_function,
-        start_ns, duration_ns)
+        duration_ns=(duration_ns - elapsed_ns))
 end
 
 
