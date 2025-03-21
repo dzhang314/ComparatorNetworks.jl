@@ -172,7 +172,7 @@ abstract type AbstractCondition{N} end
 struct PassesTest{N,T,C,P} <: AbstractCondition{N}
     test_case::NTuple{N,T}
     comparator::C
-    property::P
+    postcondition::P
     buffer::Vector{T}
 end
 
@@ -180,7 +180,7 @@ end
 struct PassesAllTests{N,T,C,P} <: AbstractCondition{N}
     test_cases::Vector{NTuple{N,T}}
     comparator::C
-    property::P
+    postcondition::P
     buffer::Vector{T}
 end
 
@@ -188,20 +188,22 @@ end
 function PassesTest(
     test_case::NTuple{N,T},
     comparator::C,
-    property::P,
+    properpostconditionty::P,
 ) where {N,T,C,P}
     buffer = Vector{T}(undef, N)
-    return PassesTest{N,T,C,P}(test_case, comparator, property, buffer)
+    return PassesTest{N,T,C,P}(
+        test_case, comparator, postcondition, buffer)
 end
 
 
 function PassesAllTests(
     test_cases::Vector{NTuple{N,T}},
     comparator::C,
-    property::P,
+    postcondition::P,
 ) where {N,T,C,P}
     buffer = Vector{T}(undef, N)
-    return PassesAllTests{N,T,C,P}(test_cases, comparator, property, buffer)
+    return PassesAllTests{N,T,C,P}(
+        test_cases, comparator, postcondition, buffer)
 end
 
 
@@ -213,7 +215,7 @@ end
     end
     _unsafe_run_comparator_network!(
         tester.buffer, network, tester.comparator)
-    return tester.property(tester.buffer)
+    return tester.postcondition(tester.buffer)
 end
 
 
@@ -226,7 +228,7 @@ end
         end
         _unsafe_run_comparator_network!(
             tester.buffer, network, tester.comparator)
-        if !tester.property(tester.buffer)
+        if !tester.postcondition(tester.buffer)
             return false
         end
     end

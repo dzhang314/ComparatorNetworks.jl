@@ -11,6 +11,8 @@
         "mfadd",
         "mfmul",
         "multifloat",
+        "postcondition",
+        "postconditions",
         "sprintf",
         "testset",
         "vifelse",
