@@ -185,10 +185,10 @@ end
 ############################################ FLOATING-POINT TEST CASE GENERATION
 
 
-export rand_vec_f64, rand_vec_mf64
+export rand_vec_u64, rand_vec_f64, rand_vec_mf64
 
 
-@inline _rand_vec_u64(::Val{N}) where {N} =
+@inline rand_vec_u64(::Val{N}) where {N} =
     Vec{N,UInt64}(ntuple(_ -> rand(UInt64), Val{N}()))
 
 
@@ -231,7 +231,7 @@ end
     sign_exponent_data = _rand_vec_u16(Val{N}())
     sign_bits = (sign_exponent_data << 48) & 0x8000000000000000
     exponents = ((sign_exponent_data & 0x03FF) + 0x0200) << 52
-    mantissa_data = _rand_vec_u64(Val{N}())
+    mantissa_data = rand_vec_u64(Val{N}())
     i = mantissa_data >> 58
     j = (mantissa_data >> 52) & 0x3F
     low_index = _reduce_63_to_52(min(i, j))
