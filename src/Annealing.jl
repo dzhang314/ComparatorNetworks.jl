@@ -1,7 +1,7 @@
 module Annealing
 
 using ..ComparatorNetworks: ComparatorNetwork, AbstractCondition,
-    _random_comparator, generate_comparator_network
+    _test_conditions, _random_comparator, generate_comparator_network
 
 ################################################################################
 
@@ -9,30 +9,29 @@ using ..ComparatorNetworks: ComparatorNetwork, AbstractCondition,
 export pareto_dominates, pareto_push!, optimize_comparator_network
 
 
-function _unsafe_mutate_comparator_network!(
-    temp::AbstractVector{T},
+function mutate_comparator_network!(
     network::ComparatorNetwork{N},
-    comparator::C,
-    test_cases::AbstractVector{NTuple{N,T}},
-    property::P,
-    insert_weight::Int,
-    delete_weight::Int,
-    swap_weight::Int,
-    duration_ns::UInt64,
-) where {N,T,C,P}
+    conditions::AbstractCondition{N}...;
+    insert_weight::Integer,
+    delete_weight::Integer,
+    swap_weight::Integer,
+    duration_ns::Integer,
+) where {N}
     start_ns = time_ns()
+    @assert !signbit(insert_weight)
+    @assert !signbit(delete_weight)
+    @assert !signbit(swap_weight)
+    @assert !signbit(duration_ns)
     num_comparators = length(network.comparators)
-    w1 = insert_weight
-    w2 = w1 + delete_weight
-    w3 = w2 + swap_weight
+    w1 = Int(insert_weight)
+    w2 = Base.checked_add(w1, Int(delete_weight))
+    w3 = Base.checked_add(w2, Int(swap_weight))
     while true
         w = rand(1:w3)
         if w <= w1 # insert
             i = rand(1:num_comparators+1)
             insert!(network.comparators, i, _random_comparator(Val{N}()))
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
+            if _test_conditions(network, conditions...)
                 return network
             end
             deleteat!(network.comparators, i)
@@ -40,9 +39,7 @@ function _unsafe_mutate_comparator_network!(
             i = rand(1:num_comparators)
             @inbounds original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
+            if _test_conditions(network, conditions...)
                 return network
             end
             insert!(network.comparators, i, original_comparator)
@@ -52,9 +49,7 @@ function _unsafe_mutate_comparator_network!(
             j += (j >= i)
             @inbounds network.comparators[i], network.comparators[j] =
                 network.comparators[j], network.comparators[i]
-            pass = _unsafe_test_comparator_network!(
-                temp, network, comparator, test_cases, property)
-            if pass
+            if _test_conditions(network, conditions...)
                 return network
             end
             @inbounds network.comparators[i], network.comparators[j] =

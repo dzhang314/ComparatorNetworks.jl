@@ -205,7 +205,7 @@ function PassesAllTests(
 end
 
 
-function (tester::PassesTest{N,T,C,P})(
+@inline function (tester::PassesTest{N,T,C,P})(
     network::ComparatorNetwork{N},
 ) where {N,T,C,P}
     @simd ivdep for i = 1:N
@@ -217,7 +217,7 @@ function (tester::PassesTest{N,T,C,P})(
 end
 
 
-function (tester::PassesAllTests{N,T,C,P})(
+@inline function (tester::PassesAllTests{N,T,C,P})(
     network::ComparatorNetwork{N},
 ) where {N,T,C,P}
     for test_case in tester.test_cases
@@ -234,7 +234,20 @@ function (tester::PassesAllTests{N,T,C,P})(
 end
 
 
-export test_comparator_network, prune!, generate_comparator_network
+export prune!, generate_comparator_network
+
+
+@inline function _test_conditions(
+    network::ComparatorNetwork{N},
+    conditions::AbstractCondition{N}...,
+) where {N}
+    for condition in conditions
+        if !condition(network)
+            return false
+        end
+    end
+    return true
+end
 
 
 function prune!(
@@ -246,14 +259,7 @@ function prune!(
         for i in shuffle(1:length(network.comparators))
             original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
-            pass = true
-            for condition in conditions
-                if !condition(network)
-                    pass = false
-                    break
-                end
-            end
-            if pass
+            if _test_conditions(network, conditions...)
                 found = true
                 break
             else
@@ -279,19 +285,8 @@ function generate_comparator_network(
     conditions::AbstractCondition{N}...,
 ) where {N}
     network = ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
-    while true
-        pass = true
-        for condition in conditions
-            if !condition(network)
-                pass = false
-                break
-            end
-        end
-        if pass
-            break
-        else
-            push!(network.comparators, _random_comparator(Val{N}()))
-        end
+    while !_test_conditions(network, conditions...)
+        push!(network.comparators, _random_comparator(Val{N}()))
     end
     return prune!(network, conditions...)
 end
