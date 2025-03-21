@@ -40,7 +40,7 @@ export forward_pass, forward_fixed_point,
     riffle_pass, riffle_fixed_point
 
 
-function _inline_pass_expr(comparator, method::Symbol, N::Int)
+function _inline_pass_expr(comparator::Symbol, method::Symbol, N::Int)
     xs = [Symbol('x', i) for i in Base.OneTo(N)]
     body = Expr[]
     push!(body, Expr(:meta, :inline))
@@ -76,7 +76,7 @@ end
     comparator::C,
     x::NTuple{N,T},
 ) where {N,T,C}
-    return _inline_pass_expr(C.instance, :forward, N)
+    return _inline_pass_expr(:comparator, :forward, N)
 end
 
 
@@ -98,7 +98,7 @@ end
     comparator::C,
     x::NTuple{N,T},
 ) where {N,T,C}
-    return _inline_pass_expr(C.instance, :backward, N)
+    return _inline_pass_expr(:comparator, :backward, N)
 end
 
 
@@ -120,7 +120,7 @@ end
     comparator::C,
     x::NTuple{N,T},
 ) where {N,T,C}
-    return _inline_pass_expr(C.instance, :riffle, N)
+    return _inline_pass_expr(:comparator, :riffle, N)
 end
 
 
