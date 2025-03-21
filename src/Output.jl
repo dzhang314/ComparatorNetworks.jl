@@ -166,6 +166,11 @@ function svg_string(
     isfinite(padding_top) || (padding_top = 2.0 * circle_radius)
     isfinite(padding_bottom) || (padding_bottom = 2.0 * circle_radius)
 
+    # Note that the number of major skips (plus one) may not equal the
+    # depth of the network. Rendering the network at its true depth may
+    # require comparators to be reordered, while this algorithm has been
+    # designed to faithfully reflect the original input ordering.
+
     lines = _SVGLine[]
     circles = _SVGCircle[]
     occupied = _ColumnOccupation[_NONE for _ = 1:N]
