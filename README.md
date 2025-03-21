@@ -14,7 +14,28 @@ Finding [optimal sorting networks][6] is a notoriously hard combinatorial optimi
 
 ## Usage Examples
 
-**ComparatorNetworks.jl** is currently under active development. The function names and interfaces shown below may change in future releases.
+> **Note:** **ComparatorNetworks.jl** is currently under active development. The function names and interfaces shown below may change in future releases.
+
+Suppose we want to find a comparator network that sorts every possible permutation of 3 inputs. We first set up a _condition object_ to represent the desired condition. Then, we call `generate_comparator_network(condition)` to find a random comparator network that satisfies the condition.
+
+```
+using ComparatorNetworks
+
+condition = PassesAllTests(
+    [(1, 2, 3), (1, 3, 2), (2, 1, 3), (2, 3, 1), (3, 1, 2), (3, 2, 1)],
+    minmax, issorted)
+network = generate_comparator_network(condition)
+display(network)
+```
+
+This will return one of several possible outputs:
+
+> ![Example1](https://github.com/user-attachments/assets/f7fc4213-92fa-49e3-8c42-d0534406c00c) or
+> ![Example2](https://github.com/user-attachments/assets/0fbd60bb-48a0-47e9-9839-a00fb818614d) or
+> ![Example3](https://github.com/user-attachments/assets/07079fc8-c7aa-4be2-9cfc-97d41b1af7c5) or
+> ![Example4](https://github.com/user-attachments/assets/bb267c5c-46c3-47ca-86f2-963c3b1b10eb)
+
+In the Julia REPL, this will display in textual form, e.g., `ComparatorNetwork{3}(Tuple{UInt8, UInt8}[(0x02, 0x03), (0x01, 0x03), (0x01, 0x02)])`. In Jupyter, this will display as a graphical SVG file, as shown above.
 
 
 
