@@ -188,7 +188,7 @@ end
 function PassesTest(
     test_case::NTuple{N,T},
     comparator::C,
-    properpostconditionty::P,
+    postcondition::P,
 ) where {N,T,C,P}
     buffer = Vector{T}(undef, N)
     return PassesTest{N,T,C,P}(
