@@ -1,13 +1,13 @@
 module Annealing
 
-using ..ComparatorNetworks: ComparatorNetwork, depth, AbstractCondition,
-    _test_conditions, _random_comparator, generate_comparator_network
+using ..ComparatorNetworks: ComparatorNetwork, depth, canonize,
+    AbstractCondition, _test_conditions, _random_comparator,
+    generate_comparator_network
 
 ################################################################################
 
 
-export mutate_comparator_network!, pareto_dominates, pareto_push!,
-    optimize_comparator_network
+export mutate_comparator_network!, optimize_comparator_network
 
 
 function mutate_comparator_network!(
@@ -63,7 +63,16 @@ function mutate_comparator_network!(
 end
 
 
-@inline function pareto_dominates(s::T, t::T) where {T}
+@inline function _pareto_le(s::T, t::T) where {T}
+    all_le = true
+    @inbounds for i in eachindex(s, t)
+        all_le &= (s[i] <= t[i])
+    end
+    return all_le
+end
+
+
+@inline function _pareto_lt(s::T, t::T) where {T}
     all_le = true
     any_lt = false
     @inbounds for i in eachindex(s, t)
@@ -74,26 +83,34 @@ end
 end
 
 
-function pareto_push!(
-    dict::AbstractDict{K,<:AbstractSet{V}},
-    key::K,
-    value::V,
-) where {K,V}
-    if haskey(dict, key)
-        push!(dict[key], copy(value))
-    else
-        worse_keys = K[]
-        for other_key in keys(dict)
-            if pareto_dominates(other_key, key)
-                return dict
-            elseif pareto_dominates(key, other_key)
-                push!(worse_keys, other_key)
+function _pareto_push!(
+    dict::Dict{K,Dict{ComparatorNetwork{N},UInt64}},
+    scoring_function,
+    network::ComparatorNetwork{N},
+    start_ns::UInt64,
+) where {K,N}
+    initial_key = scoring_function(network)
+    if haskey(dict, initial_key) || any(
+        _pareto_le(initial_key, key) for key in keys(dict))
+        canonized = canonize(network)
+        canonized_key = scoring_function(canonized)
+        @assert _pareto_le(canonized_key, initial_key)
+        if !haskey(dict, canonized_key)
+            dict[canonized_key] = Dict{ComparatorNetwork{N},UInt64}()
+            worse_keys = K[]
+            for key in keys(dict)
+                if _pareto_lt(canonized_key, key)
+                    push!(worse_keys, key)
+                end
+            end
+            for worse_key in worse_keys
+                delete!(dict, worse_key)
             end
         end
-        for worse_key in worse_keys
-            delete!(dict, worse_key)
+        local_dict = dict[canonized_key]
+        if !haskey(local_dict, canonized)
+            local_dict[canonized] = time_ns() - start_ns
         end
-        dict[key] = Set((copy(value),))
     end
     return dict
 end
@@ -116,12 +133,12 @@ function optimize_comparator_network(
     duration_ns::Integer,
 ) where {N}
     start_ns = time_ns()
+    canonized = canonize(network)
+    initial_score = scoring_function(canonized)
+    result = Dict{typeof(initial_score),Dict{ComparatorNetwork{N},UInt64}}()
+    result[initial_score] = Dict(canonized => zero(UInt64))
     temp_network = copy(network)
-    initial_score = scoring_function(temp_network)
-    result = Dict{typeof(initial_score),Set{ComparatorNetwork{N}}}()
-    pareto_push!(result, initial_score, copy(temp_network))
-    t = 1
-    while true
+    for t = 1:typemax(Int)
         insert_weight = max(1, ceil(Int, insert_rate_function(t)))
         delete_weight = max(1, ceil(Int, delete_rate_function(t)))
         swap_weight = max(1, ceil(Int, swap_rate_function(t)))
@@ -129,36 +146,12 @@ function optimize_comparator_network(
         if elapsed_ns >= duration_ns
             return result
         end
-        remaining_ns = duration_ns - elapsed_ns
         mutate_comparator_network!(temp_network, conditions...;
-            insert_weight, delete_weight, swap_weight, duration_ns=remaining_ns)
-        pareto_push!(result, scoring_function(temp_network), temp_network)
+            insert_weight, delete_weight, swap_weight,
+            duration_ns=(duration_ns - elapsed_ns))
+        _pareto_push!(result, scoring_function, temp_network, start_ns)
         t += 1
     end
-end
-
-
-function optimize_comparator_network(
-    conditions::AbstractCondition{N}...;
-    scoring_function=_default_scoring_function,
-    insert_rate_function=_default_insert_rate_function,
-    delete_rate_function=sqrt,
-    swap_rate_function=log,
-    duration_ns::Integer,
-) where {N}
-    start_ns = time_ns()
-    temp_network = generate_comparator_network(conditions...)
-    initial_score = scoring_function(temp_network)
-    result = Dict{typeof(initial_score),Set{ComparatorNetwork{N}}}()
-    pareto_push!(result, initial_score, copy(temp_network))
-    elapsed_ns = time_ns() - start_ns
-    if elapsed_ns >= duration_ns
-        return result
-    end
-    return optimize_comparator_network(temp_network, conditions...;
-        scoring_function,
-        insert_rate_function, delete_rate_function, swap_rate_function,
-        duration_ns=(duration_ns - elapsed_ns))
 end
 
 
