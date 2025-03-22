@@ -71,11 +71,6 @@ function Base.isless(
 end
 
 
-include("Canonization.jl")
-using .Canonization
-export canonize
-
-
 include("Output.jl")
 using .Output
 export hexfloat
@@ -85,17 +80,51 @@ export svg_string
 ############################################################## DEPTH COMPUTATION
 
 
-export depth
+export depth, canonize
 
 
 @inline function depth(network::ComparatorNetwork{N}) where {N}
     generation = ntuple(_ -> 0, Val{N}())
-    @inbounds for (i, j) in network.comparators
-        age = max(generation[i], generation[j]) + 1
-        generation = Base.setindex(generation, age, i)
-        generation = Base.setindex(generation, age, j)
+    for (i, j) in network.comparators
+        @assert 1 <= i < j <= N
+        gi = @inbounds generation[i]
+        gj = @inbounds generation[j]
+        age = max(gi, gj) + 1
+        generation = @inbounds Base.setindex(generation, age, i)
+        generation = @inbounds Base.setindex(generation, age, j)
     end
     return maximum(generation)
+end
+
+
+function canonize(network::ComparatorNetwork{N}) where {N}
+    last_compared = ntuple(_ -> zero(UInt8), Val{N}())
+    generation = ntuple(_ -> 0, Val{N}())
+    comparators = Vector{Tuple{UInt8,UInt8}}[]
+    for (i, j) in network.comparators
+        @assert 1 <= i < j <= N
+        lci = @inbounds last_compared[i]
+        lcj = @inbounds last_compared[j]
+        if (lci != j) | (lcj != i)
+            gi = @inbounds generation[i]
+            gj = @inbounds generation[j]
+            age = max(gi, gj) + 1
+            if age > length(comparators)
+                @assert age == length(comparators) + 1
+                push!(comparators, [(i, j)])
+            else
+                push!((@inbounds comparators[age]), (i, j))
+            end
+            last_compared = @inbounds Base.setindex(last_compared, j, i)
+            last_compared = @inbounds Base.setindex(last_compared, i, j)
+            generation = @inbounds Base.setindex(generation, age, i)
+            generation = @inbounds Base.setindex(generation, age, j)
+        end
+    end
+    for v in comparators
+        sort!(v)
+    end
+    return ComparatorNetwork{N}(reduce(vcat, comparators))
 end
 
 
