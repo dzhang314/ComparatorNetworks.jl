@@ -141,7 +141,7 @@ end
 ################################################################# POSTCONDITIONS
 
 
-export isbitsorted
+export isbitsorted, IsCoarselySorted
 
 
 @inline function isbitsorted(data::AbstractVector{T}) where {T}
@@ -150,6 +150,41 @@ export isbitsorted
         @inbounds result &= data[i+1] | ~data[i]
     end
     return all(iszero(~result))
+end
+
+
+struct IsCoarselySorted
+    n::Int
+
+    function IsCoarselySorted(n::Integer)
+        n = Int(n)
+        @assert n > 0
+        return new(n)
+    end
+end
+
+
+@inline function (cond::IsCoarselySorted)(data::AbstractVector)
+    if isempty(data)
+        return true
+    end
+    n = cond.n
+    first_index = firstindex(data)
+    last_index = lastindex(data)
+    middle_index = min(first_index + (n - 1), last_index)
+    first_item = @inbounds data[first_index]
+    result = (first_item == first_item)
+    prev_item = first_item
+    for i = first_index+1:middle_index
+        item = @inbounds data[i]
+        result &= (iszero(prev_item) & iszero(item)) | (prev_item > item)
+        prev_item = item
+    end
+    for i = middle_index+1:last_index
+        item = @inbounds data[i]
+        result &= iszero(item) | (first_item >= item + n)
+    end
+    return all(result)
 end
 
 

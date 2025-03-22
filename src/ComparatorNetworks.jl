@@ -9,7 +9,7 @@ export bitminmax, two_sum, annihilating_maxmin
 export forward_pass, forward_fixed_point,
     backward_pass, backward_fixed_point,
     riffle_pass, riffle_fixed_point
-export isbitsorted
+export isbitsorted, IsCoarselySorted
 
 include("TestCaseGenerators.jl")
 using .TestCaseGenerators
