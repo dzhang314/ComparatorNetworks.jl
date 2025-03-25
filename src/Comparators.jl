@@ -153,36 +153,27 @@ export isbitsorted, IsCoarselySorted
 end
 
 
-struct IsCoarselySorted
-    n::Int
-
-    function IsCoarselySorted(n::Integer)
-        n = Int(n)
-        @assert n > 0
-        return new(n)
-    end
-end
+struct IsCoarselySorted{M,N} end
 
 
-@inline function (cond::IsCoarselySorted)(data::AbstractVector)
-    if isempty(data)
-        return true
-    end
-    n = cond.n
-    first_index = firstindex(data)
-    last_index = lastindex(data)
-    middle_index = min(first_index + (n - 1), last_index)
-    first_item = @inbounds data[first_index]
+@inline function (::IsCoarselySorted{M,N})(
+    data::AbstractVector{T},
+) where {M,N,T}
+    @assert 1 <= M <= N
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    first_item = @inbounds data[1]
     result = (first_item == first_item)
     prev_item = first_item
-    for i = first_index+1:middle_index
+    for i = 2:M
         item = @inbounds data[i]
         result &= (iszero(prev_item) & iszero(item)) | (prev_item > item)
         prev_item = item
     end
-    for i = middle_index+1:last_index
+    TM = T(M)
+    for i = M+1:N
         item = @inbounds data[i]
-        result &= iszero(item) | (first_item >= item + n)
+        result &= iszero(item) | (first_item >= item + TM)
     end
     return all(result)
 end
