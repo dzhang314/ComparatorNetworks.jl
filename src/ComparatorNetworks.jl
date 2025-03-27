@@ -9,7 +9,8 @@ export bitminmax, two_sum, annihilating_maxmin
 export forward_pass, forward_fixed_point,
     backward_pass, backward_fixed_point,
     riffle_pass, riffle_fixed_point
-export isbitsorted, IsCoarselySorted
+export isbitsorted, IsCoarselySorted,
+    IsNormalized, RelativeErrorBound, IsCorrectlyRounded
 
 include("TestCaseGenerators.jl")
 using .TestCaseGenerators
@@ -98,6 +99,9 @@ end
 
 
 function canonize(network::ComparatorNetwork{N}) where {N}
+    if isempty(network.comparators)
+        return ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
+    end
     last_compared = ntuple(_ -> zero(UInt8), Val{N}())
     generation = ntuple(_ -> 0, Val{N}())
     comparators = Vector{Tuple{UInt8,UInt8}}[]
@@ -153,6 +157,7 @@ end
     network::ComparatorNetwork{N},
     comparator::C,
 ) where {N,T,C}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     Base.require_one_based_indexing(data)
     @assert length(data) == N
     return _unsafe_run_comparator_network!(data, network, comparator)
@@ -164,6 +169,7 @@ function run_comparator_network(
     network::ComparatorNetwork{N},
     comparator::C,
 ) where {N,T,C}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     return _unsafe_run_comparator_network!(collect(input), network, comparator)
 end
 
@@ -239,6 +245,7 @@ end
 @inline function (tester::PassesTest{N,T,C,P})(
     network::ComparatorNetwork{N},
 ) where {N,T,C,P}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     @simd ivdep for i = 1:N
         @inbounds tester.buffer[i] = tester.test_case[i]
     end
@@ -251,6 +258,7 @@ end
 @inline function (tester::PassesAllTests{N,T,C,P})(
     network::ComparatorNetwork{N},
 ) where {N,T,C,P}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
     for test_case in tester.test_cases
         @simd ivdep for i = 1:N
             @inbounds tester.buffer[i] = test_case[i]

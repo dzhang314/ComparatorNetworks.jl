@@ -141,7 +141,8 @@ end
 ################################################################# POSTCONDITIONS
 
 
-export isbitsorted, IsCoarselySorted
+export isbitsorted, IsCoarselySorted,
+    IsNormalized, RelativeErrorBound, IsCorrectlyRounded
 
 
 @inline function isbitsorted(data::AbstractVector{T}) where {T}
@@ -156,9 +157,7 @@ end
 struct IsCoarselySorted{M,N} end
 
 
-@inline function (::IsCoarselySorted{M,N})(
-    data::AbstractVector{T},
-) where {M,N,T}
+@inline function (::IsCoarselySorted{M,N})(data) where {M,N}
     @assert 1 <= M <= N
     Base.require_one_based_indexing(data)
     @assert length(data) == N
@@ -170,11 +169,98 @@ struct IsCoarselySorted{M,N} end
         result &= (iszero(prev_item) & iszero(item)) | (prev_item > item)
         prev_item = item
     end
-    TM = T(M)
+    TM = eltype(data)(M)
     for i = M+1:N
         item = @inbounds data[i]
         result &= iszero(item) | (first_item >= item + TM)
     end
+    return all(result)
+end
+
+
+struct IsNormalized{M,N} end
+
+
+@inline function (cond::IsNormalized{M,N})(data) where {M,N}
+    @assert 1 <= M <= N
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    first_item = @inbounds data[1]
+    result = (first_item == first_item)
+    prev_item = first_item
+    for i = 2:M
+        item = @inbounds data[i]
+        s, e = two_sum(prev_item, item)
+        result &= ((s == prev_item) & (e == item)) |
+                  (!isfinite(s)) | (!isfinite(e))
+        prev_item = item
+    end
+    return all(result)
+end
+
+
+struct RelativeErrorBound{M,N,T}
+    epsilon::T
+end
+
+
+@inline function (cond::RelativeErrorBound{M,N,T})(data) where {M,N,T}
+    @assert 1 <= M <= N
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    first_item = @inbounds data[1]
+    result = (first_item == first_item)
+    prev_item = first_item
+    for i = 2:M
+        item = @inbounds data[i]
+        s, e = two_sum(prev_item, item)
+        result &= ((s == prev_item) & (e == item)) |
+                  (!isfinite(s)) | (!isfinite(e))
+        prev_item = item
+    end
+    if !all(result)
+        return false
+    end
+    tail = riffle_fixed_point(two_sum,
+        ntuple(i -> (@inbounds data[M+i]), Val{N - M}()))
+    if isempty(tail)
+        return true
+    end
+    first_tail = @inbounds tail[1]
+    return all((abs(first_tail) <= cond.epsilon * abs(first_item)) |
+               (!isfinite(first_tail)) | (!isfinite(first_item)))
+end
+
+
+struct IsCorrectlyRounded{M,N} end
+
+
+@inline function (cond::IsCorrectlyRounded{M,N})(data) where {M,N}
+    @assert 1 <= M <= N
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    first_item = @inbounds data[1]
+    result = (first_item == first_item)
+    prev_item = first_item
+    for i = 2:M
+        item = @inbounds data[i]
+        s, e = two_sum(prev_item, item)
+        result &= ((s == prev_item) & (e == item)) |
+                  (!isfinite(s)) | (!isfinite(e))
+        prev_item = item
+    end
+    if !all(result)
+        return false
+    end
+    tail = riffle_fixed_point(two_sum,
+        ntuple(i -> (@inbounds data[M+i]), Val{N - M}()))
+    if isempty(tail)
+        return true
+    end
+    first_tail = @inbounds tail[1]
+    s, e = two_sum(prev_item, first_tail)
+    result &= ((s == prev_item) & (e == first_tail)) |
+              (!isfinite(s)) | (!isfinite(e))
     return all(result)
 end
 
