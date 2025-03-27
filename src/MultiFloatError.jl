@@ -121,7 +121,7 @@ end
 ################################################## WORST CASE INPUT OPTIMIZATION
 
 
-export find_worst_case_mfadd_inputs
+export find_worst_case_mfadd_inputs, find_worst_case_mfmul_inputs
 
 
 @inline function _unsafe_multifloat_relative_error(
@@ -277,6 +277,67 @@ function find_worst_case_mfadd_inputs(
                 yj = ntuple(i -> (@inbounds y[i][j]), Val{Y}())
                 error_scalar, opt_x, opt_y = _unsafe_optimize_relative_error!(
                     temp_scalar, network, prepare_mfadd_inputs,
+                    xj, yj, Val{Z}())
+                if error_scalar > max_error
+                    max_error = error_scalar
+                    worst_case_x = opt_x
+                    worst_case_y = opt_y
+                end
+            end
+        end
+        count += M
+        if time_ns() - start_ns >= duration_ns
+            return (max_error, (worst_case_x, worst_case_y), count)
+        end
+    end
+end
+
+
+function find_worst_case_mfmul_inputs(
+    ::Val{M},
+    network::ComparatorNetwork{N},
+    ::Val{X},
+    ::Val{Y},
+    ::Val{Z},
+    duration_ns::Integer,
+) where {M,N,X,Y,Z}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
+    start_ns = time_ns()
+    @assert 2 * X * Y == N
+    @assert 1 <= Z <= N
+    max_error = zero(Float64)
+    worst_case_x = ntuple(_ -> zero(Float64), Val{X}())
+    worst_case_y = ntuple(_ -> zero(Float64), Val{Y}())
+    count = 0
+    temp_vector = Vector{Vec{M,Float64}}(undef, N)
+    temp_scalar = Vector{Float64}(undef, N)
+    while true
+        x = rand_vec_mf64(Val{M}(), Val{X}())
+        y = rand_vec_mf64(Val{M}(), Val{Y}())
+        error_vector = _unsafe_multifloat_relative_error!(
+            temp_vector, network, prepare_mfmul_inputs(x, y), Val{Z}())
+        if any(isone(error_vector))
+            for j = 1:M
+                xj = ntuple(i -> (@inbounds x[i][j]), Val{X}())
+                yj = ntuple(i -> (@inbounds y[i][j]), Val{Y}())
+                error_scalar = _unsafe_multifloat_relative_error!(
+                    temp_scalar, network, prepare_mfmul_inputs(xj, yj), Val{Z}())
+                count += 1
+                if isone(error_scalar)
+                    return (1.0, (xj, yj), count)
+                end
+            end
+            # This point should be unreachable. If the postcondition is
+            # correctly implemented, then every vector counterexample should
+            # contain a scalar counterexample.
+            @assert false
+        end
+        if maximum(error_vector) > max_error
+            for j = 1:M
+                xj = ntuple(i -> (@inbounds x[i][j]), Val{X}())
+                yj = ntuple(i -> (@inbounds y[i][j]), Val{Y}())
+                error_scalar, opt_x, opt_y = _unsafe_optimize_relative_error!(
+                    temp_scalar, network, prepare_mfmul_inputs,
                     xj, yj, Val{Z}())
                 if error_scalar > max_error
                     max_error = error_scalar

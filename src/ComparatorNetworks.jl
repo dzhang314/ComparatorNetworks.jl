@@ -349,7 +349,7 @@ export mutate_comparator_network!, pareto_dominates, pareto_push!,
 include("MultiFloatError.jl")
 using .MultiFloatError
 export find_mfadd_counterexample, find_mfmul_counterexample
-export find_worst_case_mfadd_inputs
+export find_worst_case_mfadd_inputs, find_worst_case_mfmul_inputs
 
 
 ##################################################### COMBINATORIAL OPTIMIZATION
