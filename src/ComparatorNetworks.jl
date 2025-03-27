@@ -343,6 +343,14 @@ export mutate_comparator_network!, pareto_dominates, pareto_push!,
     optimize_comparator_network
 
 
+###################################################### MULTIFLOAT ERROR ANALYSIS
+
+
+include("MultiFloatError.jl")
+using .MultiFloatError
+export find_mfadd_counterexample, find_mfmul_counterexample
+
+
 ##################################################### COMBINATORIAL OPTIMIZATION
 
 

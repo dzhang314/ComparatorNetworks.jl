@@ -1,5 +1,124 @@
 module MultiFloatError
 
+using SIMD: Vec
+
+using ..ComparatorNetworks: ComparatorNetwork, _unsafe_run_comparator_network!,
+    two_sum, rand_vec_mf64, prepare_mfadd_inputs, prepare_mfmul_inputs
+
+########################################################## COUNTEREXAMPLE SEARCH
+
+
+export find_mfadd_counterexample, find_mfmul_counterexample
+
+
+function find_mfadd_counterexample(
+    ::Val{M},
+    network::ComparatorNetwork{N},
+    ::Val{X},
+    ::Val{Y},
+    postcondition::P,
+    duration_ns::Integer,
+) where {M,N,X,Y,P}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
+    start_ns = time_ns()
+    @assert M >= 1
+    @assert N == X + Y
+    @assert X >= 1
+    @assert Y >= 1
+    @assert !signbit(duration_ns)
+    temp_vector = Vector{Vec{M,Float64}}(undef, N)
+    temp_scalar = Vector{Float64}(undef, N)
+    count = 0
+    while true
+        x = rand_vec_mf64(Val{M}(), Val{X}())
+        y = rand_vec_mf64(Val{M}(), Val{Y}())
+        test_case_vector = prepare_mfadd_inputs(x, y)
+        @simd ivdep for i = 1:N
+            @inbounds temp_vector[i] = test_case_vector[i]
+        end
+        _unsafe_run_comparator_network!(temp_vector, network, two_sum)
+        if !postcondition(temp_vector)
+            for j = 1:M
+                xj = ntuple(i -> (@inbounds x[i][j]), Val{X}())
+                yj = ntuple(i -> (@inbounds y[i][j]), Val{Y}())
+                test_case_scalar = prepare_mfadd_inputs(xj, yj)
+                @simd ivdep for i = 1:N
+                    @inbounds temp_scalar[i] = test_case_scalar[i][1]
+                end
+                _unsafe_run_comparator_network!(temp_scalar, network, two_sum)
+                count += 1
+                if !postcondition(temp_scalar)
+                    return ((xj, yj), count)
+                end
+            end
+            # This point should be unreachable. If the postcondition is
+            # correctly implemented, then every vector counterexample should
+            # contain a scalar counterexample.
+            @assert false
+        end
+        count += M
+        if time_ns() - start_ns >= duration_ns
+            return (nothing, count)
+        end
+    end
+end
+
+
+function find_mfmul_counterexample(
+    ::Val{M},
+    network::ComparatorNetwork{N},
+    ::Val{X},
+    ::Val{Y},
+    postcondition::P,
+    duration_ns::Integer,
+) where {M,N,X,Y,P}
+    # Assumes: network is well-formed (comparator indices lie in 1:N).
+    start_ns = time_ns()
+    @assert M >= 1
+    @assert N == 2 * X * Y
+    @assert X >= 1
+    @assert Y >= 1
+    @assert !signbit(duration_ns)
+    temp_vector = Vector{Vec{M,Float64}}(undef, N)
+    temp_scalar = Vector{Float64}(undef, N)
+    count = 0
+    while true
+        x = rand_vec_mf64(Val{M}(), Val{X}())
+        y = rand_vec_mf64(Val{M}(), Val{Y}())
+        test_case_vector = prepare_mfmul_inputs(x, y)
+        @simd ivdep for i = 1:N
+            @inbounds temp_vector[i] = test_case_vector[i]
+        end
+        _unsafe_run_comparator_network!(temp_vector, network, two_sum)
+        if !postcondition(temp_vector)
+            for j = 1:M
+                xj = ntuple(i -> (@inbounds x[i][j]), Val{X}())
+                yj = ntuple(i -> (@inbounds y[i][j]), Val{Y}())
+                test_case_scalar = prepare_mfmul_inputs(xj, yj)
+                @simd ivdep for i = 1:N
+                    @inbounds temp_scalar[i] = test_case_scalar[i][1]
+                end
+                _unsafe_run_comparator_network!(temp_scalar, network, two_sum)
+                count += 1
+                if !postcondition(temp_scalar)
+                    return ((xj, yj), count)
+                end
+            end
+            # This point should be unreachable. If the postcondition is
+            # correctly implemented, then every vector counterexample should
+            # contain a scalar counterexample.
+            @assert false
+        end
+        count += M
+        if time_ns() - start_ns >= duration_ns
+            return (nothing, count)
+        end
+    end
+end
+
+
+#=
+
 export mfadd_relative_error, optimize_mfadd_relative_error,
     find_worst_case_mfadd_inputs
 
@@ -198,6 +317,8 @@ function find_worst_case_mfadd_inputs(
         end
     end
 end
+
+=#
 
 
 ################################################################################
