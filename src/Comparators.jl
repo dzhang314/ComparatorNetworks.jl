@@ -252,11 +252,11 @@ struct IsCorrectlyRounded{M,N} end
     if !all(result)
         return false
     end
-    tail = riffle_fixed_point(two_sum,
-        ntuple(i -> (@inbounds data[M+i]), Val{N - M}()))
-    if isempty(tail)
+    if M == N
         return true
     end
+    tail = riffle_fixed_point(two_sum,
+        ntuple(i -> (@inbounds data[M+i]), Val{N - M}()))
     first_tail = @inbounds tail[1]
     s, e = two_sum(prev_item, first_tail)
     result &= ((s == prev_item) & (e == first_tail)) |
