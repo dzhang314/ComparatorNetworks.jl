@@ -358,47 +358,6 @@ export find_mfadd_counterexample, find_mfmul_counterexample
 export find_worst_case_mfadd_inputs, find_worst_case_mfmul_inputs
 
 
-##################################################### COMBINATORIAL OPTIMIZATION
-
-
-export greedy_hitting_set
-
-
-function greedy_hitting_set(sets::AbstractVector{<:AbstractSet{T}}) where {T}
-    # Given sets S_1, ..., S_n, select items x_1, ..., x_m from those sets
-    # such that each set S_i contains at least one selected item x_j.
-    # It is NP-complete to find the optimal selection that minimizes m.
-    # This function implements a greedy approximation strategy.
-    @assert isbitstype(T)
-    hit_sets = Dict{T,BitSet}()
-    for (i, set) in enumerate(sets)
-        for item in set
-            if !haskey(hit_sets, item)
-                hit_sets[item] = BitSet()
-            end
-            push!(hit_sets[item], i)
-        end
-    end
-    result = T[]
-    while !isempty(hit_sets)
-        count, item = findmax(length, hit_sets)
-        if iszero(count)
-            break
-        end
-        push!(result, item)
-        for index in hit_sets[item]
-            for other_item in sets[index]
-                if other_item !== item
-                    delete!(hit_sets[other_item], index)
-                end
-            end
-        end
-        delete!(hit_sets, item)
-    end
-    return result
-end
-
-
 ################################################################################
 
 end # module ComparatorNetworks
