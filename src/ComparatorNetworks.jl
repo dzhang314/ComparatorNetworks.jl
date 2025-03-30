@@ -9,8 +9,8 @@ export bitminmax, two_sum, annihilating_maxmin
 export forward_pass, forward_fixed_point,
     backward_pass, backward_fixed_point,
     riffle_pass, riffle_fixed_point
-export isbitsorted, IsCoarselySorted,
-    IsNormalized, RelativeErrorBound, IsCorrectlyRounded
+export isbitsorted, IsCoarselySorted, IsNormalized,
+    RelativeErrorBound, WeakRelativeErrorBound, IsCorrectlyRounded
 
 include("TestCaseGenerators.jl")
 using .TestCaseGenerators
@@ -294,11 +294,13 @@ end
 
 function prune!(
     network::ComparatorNetwork{N},
-    conditions::AbstractCondition{N}...,
+    conditions::AbstractCondition{N}...;
+    prefix_length::Integer=0,
 ) where {N}
+    @assert 0 <= prefix_length <= length(network.comparators)
     while true
         found = false
-        for i in shuffle(1:length(network.comparators))
+        for i in shuffle(prefix_length+1:length(network.comparators))
             original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
             if _test_conditions(network, conditions...)
@@ -324,13 +326,17 @@ end
 
 
 function generate_comparator_network(
-    conditions::AbstractCondition{N}...,
+    conditions::AbstractCondition{N}...;
+    initial_comparators=nothing,
 ) where {N}
-    network = ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
+    network = isnothing(initial_comparators) ?
+              ComparatorNetwork{N}(Tuple{UInt8,UInt8}[]) :
+              ComparatorNetwork{N}(initial_comparators)
+    prefix_length = length(network.comparators)
     while !_test_conditions(network, conditions...)
         push!(network.comparators, _random_comparator(Val{N}()))
     end
-    return prune!(network, conditions...)
+    return prune!(network, conditions...; prefix_length)
 end
 
 

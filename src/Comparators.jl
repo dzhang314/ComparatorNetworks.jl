@@ -141,8 +141,8 @@ end
 ################################################################# POSTCONDITIONS
 
 
-export isbitsorted, IsCoarselySorted,
-    IsNormalized, RelativeErrorBound, IsCorrectlyRounded
+export isbitsorted, IsCoarselySorted, IsNormalized,
+    RelativeErrorBound, WeakRelativeErrorBound, IsCorrectlyRounded
 
 
 @inline function isbitsorted(data::AbstractVector{T}) where {T}
@@ -229,6 +229,36 @@ end
     first_tail = @inbounds tail[1]
     return all((abs(first_tail) <= cond.epsilon * abs(first_item)) |
                (!isfinite(first_tail)) | (!isfinite(first_item)))
+end
+
+
+struct WeakRelativeErrorBound{M,N,T}
+    epsilon::T
+end
+
+
+@inline function (cond::WeakRelativeErrorBound{M,N,T})(data) where {M,N,T}
+    @assert 1 <= M <= N
+    Base.require_one_based_indexing(data)
+    @assert length(data) == N
+    _EPS = eps(T)
+    _WEAK_EPS = _EPS + _EPS
+    _WEAKER_EPS = _WEAK_EPS + _WEAK_EPS
+    first_item = @inbounds data[1]
+    result = (first_item == first_item)
+    prev_item = first_item
+    for i = 2:M
+        item = @inbounds data[i]
+        result &= (abs(item) <= _WEAKER_EPS * abs(prev_item)) |
+                  (!isfinite(item)) | (!isfinite(prev_item))
+        prev_item = item
+    end
+    for i = M+1:N
+        item = @inbounds data[i]
+        result &= (abs(item) <= cond.epsilon * abs(first_item)) |
+                  (!isfinite(item)) | (!isfinite(first_item))
+    end
+    return all(result)
 end
 
 

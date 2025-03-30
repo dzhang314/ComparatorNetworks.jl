@@ -16,12 +16,14 @@ function mutate_comparator_network!(
     insert_weight::Integer,
     delete_weight::Integer,
     swap_weight::Integer,
+    prefix_length::Integer=0,
     duration_ns::Integer,
 ) where {N}
     start_ns = time_ns()
     @assert !signbit(insert_weight)
     @assert !signbit(delete_weight)
     @assert !signbit(swap_weight)
+    @assert 0 <= prefix_length <= length(network.comparators)
     @assert !signbit(duration_ns)
     num_comparators = length(network.comparators)
     w1 = Int(insert_weight)
@@ -30,23 +32,23 @@ function mutate_comparator_network!(
     while true
         w = rand(1:w3)
         if w <= w1 # insert
-            i = rand(1:num_comparators+1)
+            i = rand(prefix_length+1:num_comparators+1)
             insert!(network.comparators, i, _random_comparator(Val{N}()))
             if _test_conditions(network, conditions...)
                 return network
             end
             deleteat!(network.comparators, i)
-        elseif (w <= w2) & (num_comparators >= 1) # delete
-            i = rand(1:num_comparators)
+        elseif (w <= w2) & (num_comparators >= prefix_length + 1) # delete
+            i = rand(prefix_length+1:num_comparators)
             @inbounds original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
             if _test_conditions(network, conditions...)
                 return network
             end
             insert!(network.comparators, i, original_comparator)
-        elseif (w <= w3) & (num_comparators >= 2) # swap
-            i = rand(1:num_comparators)
-            j = rand(1:num_comparators-1)
+        elseif (w <= w3) & (num_comparators >= prefix_length + 2) # swap
+            i = rand(prefix_length+1:num_comparators)
+            j = rand(prefix_length+1:num_comparators-1)
             j += (j >= i)
             @inbounds network.comparators[i], network.comparators[j] =
                 network.comparators[j], network.comparators[i]
@@ -130,10 +132,14 @@ function optimize_comparator_network(
     insert_rate_function=_default_insert_rate_function,
     delete_rate_function=sqrt,
     swap_rate_function=log,
+    prefix_length::Integer=0,
     duration_ns::Integer,
 ) where {N}
+    @assert 0 <= prefix_length <= length(network.comparators)
     start_ns = time_ns()
     canonized = canonize(network)
+    @assert canonized.comparators[1:prefix_length] ==
+            network.comparators[1:prefix_length]
     initial_score = scoring_function(canonized)
     result = Dict{typeof(initial_score),Dict{ComparatorNetwork{N},UInt64}}()
     result[initial_score] = Dict(canonized => zero(UInt64))
@@ -147,7 +153,7 @@ function optimize_comparator_network(
             return result
         end
         mutate_comparator_network!(temp_network, conditions...;
-            insert_weight, delete_weight, swap_weight,
+            insert_weight, delete_weight, swap_weight, prefix_length,
             duration_ns=(duration_ns - elapsed_ns))
         _pareto_push!(result, scoring_function, temp_network, start_ns)
         t += 1
