@@ -6,6 +6,67 @@ using ..ComparatorNetworks: ComparatorNetwork, _unsafe_run_comparator_network!,
     two_sum, riffle_fixed_point, rand_vec_mf64,
     prepare_mfadd_inputs, prepare_mfmul_inputs
 
+############################################################ COMPARATOR PREFIXES
+
+
+export commutative_mfadd_prefix, commutative_mfmul_prefix
+
+
+function commutative_mfadd_prefix(X::Integer, Y::Integer)
+    @assert X > 0
+    @assert Y > 0
+    return [(UInt8(2 * i - 1), UInt8(2 * i)) for i = 1:min(X, Y)]
+end
+
+
+commutative_mfadd_prefix(::Val{X}, ::Val{Y}) where {X,Y} =
+    commutative_mfadd_prefix(X, Y)
+
+
+function commutative_mfmul_prefix(X::Integer, Y::Integer)
+    @assert X > 0
+    @assert Y > 0
+    tiers = Dict{Int,Vector{Tuple{Int,Int}}}()
+    for i = 1:X
+        for j = 1:Y
+            tier = i + j
+            if haskey(tiers, tier)
+                push!(tiers[tier], (i, j))
+            else
+                tiers[tier] = [(i, j)]
+            end
+        end
+    end
+    terms = Tuple{Char,Int,Int}[]
+    for k = 2:X+Y
+        for (i, j) in tiers[k]
+            push!(terms, ('p', i, j))
+        end
+        for (i, j) in tiers[k]
+            push!(terms, ('e', i, j))
+        end
+    end
+    mirror = Dict{Tuple{Char,Int,Int},Int}()
+    for (k, (s, i, j)) in enumerate(terms)
+        mirror[(s, j, i)] = k
+    end
+    result = Tuple{UInt8,UInt8}[]
+    for (k, term) in enumerate(terms)
+        if haskey(mirror, term)
+            mk = mirror[term]
+            if k < mk
+                push!(result, (UInt8(k), UInt8(mk)))
+            end
+        end
+    end
+    return result
+end
+
+
+commutative_mfmul_prefix(::Val{X}, ::Val{Y}) where {X,Y} =
+    commutative_mfmul_prefix(X, Y)
+
+
 ########################################################## COUNTEREXAMPLE SEARCH
 
 
