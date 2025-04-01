@@ -101,8 +101,10 @@ function canonize(
     network::ComparatorNetwork{N};
     prefix_length::Integer=0,
 ) where {N}
-    if isempty(network.comparators)
-        return ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
+    @assert prefix_length <= length(network.comparators)
+    if length(network.comparators) <= prefix_length
+        # ComparatorNetwork{N} constructor makes a copy of the input data.
+        return ComparatorNetwork{N}(network.comparators)
     end
     last_compared = ntuple(_ -> zero(UInt8), Val{N}())
     generation = ntuple(_ -> 0, Val{N}())
