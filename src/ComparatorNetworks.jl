@@ -1,7 +1,6 @@
 module ComparatorNetworks
 
 using Random: shuffle
-using SIMD: Vec
 
 include("Comparators.jl")
 using .Comparators

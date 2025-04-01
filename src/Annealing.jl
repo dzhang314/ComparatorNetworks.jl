@@ -1,8 +1,7 @@
 module Annealing
 
 using ..ComparatorNetworks: ComparatorNetwork, depth, canonize,
-    AbstractCondition, _test_conditions, _random_comparator,
-    generate_comparator_network
+    AbstractCondition, _test_conditions, _random_comparator
 
 ################################################################################
 
