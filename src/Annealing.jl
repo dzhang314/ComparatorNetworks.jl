@@ -88,12 +88,13 @@ function _pareto_push!(
     dict::Dict{K,Dict{ComparatorNetwork{N},UInt64}},
     scoring_function,
     network::ComparatorNetwork{N},
+    prefix_length::Integer,
     start_ns::UInt64,
 ) where {K,N}
     initial_key = scoring_function(network)
     if haskey(dict, initial_key) || any(
         _pareto_le(initial_key, key) for key in keys(dict))
-        canonized = canonize(network)
+        canonized = canonize(network; prefix_length)
         canonized_key = scoring_function(canonized)
         @assert _pareto_le(canonized_key, initial_key)
         if !haskey(dict, canonized_key)
@@ -136,7 +137,7 @@ function optimize_comparator_network(
 ) where {N}
     @assert 0 <= prefix_length <= length(network.comparators)
     start_ns = time_ns()
-    canonized = canonize(network)
+    canonized = canonize(network; prefix_length)
     @assert canonized.comparators[1:prefix_length] ==
             network.comparators[1:prefix_length]
     initial_score = scoring_function(canonized)
@@ -154,7 +155,8 @@ function optimize_comparator_network(
         mutate_comparator_network!(temp_network, conditions...;
             insert_weight, delete_weight, swap_weight, prefix_length,
             duration_ns=(duration_ns - elapsed_ns))
-        _pareto_push!(result, scoring_function, temp_network, start_ns)
+        _pareto_push!(result, scoring_function, temp_network,
+            prefix_length, start_ns)
         t += 1
     end
 end

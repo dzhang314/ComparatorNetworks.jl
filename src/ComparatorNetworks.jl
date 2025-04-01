@@ -97,18 +97,24 @@ export depth, canonize
 end
 
 
-function canonize(network::ComparatorNetwork{N}) where {N}
+function canonize(
+    network::ComparatorNetwork{N};
+    prefix_length::Integer=0,
+) where {N}
     if isempty(network.comparators)
         return ComparatorNetwork{N}(Tuple{UInt8,UInt8}[])
     end
     last_compared = ntuple(_ -> zero(UInt8), Val{N}())
     generation = ntuple(_ -> 0, Val{N}())
+    prefix = Tuple{UInt8,UInt8}[]
     comparators = Vector{Tuple{UInt8,UInt8}}[]
-    for (i, j) in network.comparators
+    for (k, (i, j)) in enumerate(network.comparators)
         @assert 1 <= i < j <= N
         lci = @inbounds last_compared[i]
         lcj = @inbounds last_compared[j]
-        if (lci != j) | (lcj != i)
+        if k <= prefix_length
+            push!(prefix, (i, j))
+        elseif (lci != j) | (lcj != i)
             gi = @inbounds generation[i]
             gj = @inbounds generation[j]
             age = max(gi, gj) + 1
@@ -127,7 +133,7 @@ function canonize(network::ComparatorNetwork{N}) where {N}
     for v in comparators
         sort!(v)
     end
-    return ComparatorNetwork{N}(reduce(vcat, comparators))
+    return ComparatorNetwork{N}(vcat(prefix, reduce(vcat, comparators)))
 end
 
 
@@ -353,6 +359,7 @@ export mutate_comparator_network!, pareto_dominates, pareto_push!,
 
 include("MultiFloatError.jl")
 using .MultiFloatError
+export commutative_mfadd_prefix, commutative_mfmul_prefix
 export find_mfadd_counterexample, find_mfmul_counterexample
 export find_worst_case_mfadd_inputs, find_worst_case_mfmul_inputs
 
