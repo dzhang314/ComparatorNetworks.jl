@@ -297,4 +297,215 @@ end
 
 ################################################################################
 
+
+#=
+
+
+export WeaklyNormalizedCondition
+
+
+struct WeaklyNormalizedCondition{N,M} <: AbstractTwoSumCondition{N}
+    function WeaklyNormalizedCondition{N,M}() where {N,M}
+        @assert N >= M >= 1
+        return new{N,M}()
+    end
+end
+
+
+@inline _unsafe_exponent(x::T) where {T<:Base.IEEEFloat} = Int(
+    (reinterpret(Unsigned, x) & ~Base.sign_mask(T)) >> Base.significand_bits(T)
+) - Base.exponent_bias(T)
+
+
+@inline function _is_weakly_normalized(a::T, b::T) where {T}
+    if iszero(b)
+        return true
+    elseif iszero(a)
+        return false
+    else
+        return _unsafe_exponent(a) >= _unsafe_exponent(b) + precision(T)
+    end
+end
+
+
+@inline function _is_weakly_normalized(a::T, b::T, n::Int) where {T}
+    if iszero(b)
+        return true
+    elseif iszero(a)
+        return false
+    else
+        return _unsafe_exponent(a) >= _unsafe_exponent(b) + n * precision(T)
+    end
+end
+
+
+function (cond::WeaklyNormalizedCondition{N,M})(
+    x::NTuple{N,T},
+) where {N,M,T}
+    @inbounds for i = 1:M-1
+        if !_is_weakly_normalized(x[i], x[i+1])
+            return false
+        end
+    end
+    @inbounds first_limb = x[1]
+    @inbounds for i = M+1:N
+        if !_is_weakly_normalized(first_limb, x[i], M)
+            return false
+        end
+    end
+    return true
+end
+
+
+function (cond::WeaklyNormalizedCondition{N,M})(
+    x::AbstractVector{T},
+) where {N,M,T}
+    Base.require_one_based_indexing(x)
+    @assert length(x) == N
+    @inbounds for i = 1:M-1
+        if !_is_weakly_normalized(x[i], x[i+1])
+            return false
+        end
+    end
+    @inbounds first_limb = x[1]
+    @inbounds for i = M+1:N
+        if !_is_weakly_normalized(first_limb, x[i], M)
+            return false
+        end
+    end
+    return true
+end
+
+
+export IncompletelyNormalizedCondition
+
+
+struct IncompletelyNormalizedCondition{N,M,K} <: AbstractTwoSumCondition{N}
+    function IncompletelyNormalizedCondition{N,M,K}() where {N,M,K}
+        @assert N >= M >= 1
+        @assert K >= 0
+        return new{N,M,K}()
+    end
+end
+
+
+@inline function _is_incompletely_normalized(a::T, b::T, k::Int) where {T}
+    if iszero(b)
+        return true
+    elseif iszero(a)
+        return false
+    else
+        return _unsafe_exponent(a) >= _unsafe_exponent(b) + (precision(T) - k)
+    end
+end
+
+
+@inline function _is_incompletely_normalized(
+    a::T, b::T, n::Int, k::Int,
+) where {T}
+    if iszero(b)
+        return true
+    elseif iszero(a)
+        return false
+    else
+        return (_unsafe_exponent(a) >=
+                _unsafe_exponent(b) + n * (precision(T) - k))
+    end
+end
+
+
+function (cond::IncompletelyNormalizedCondition{N,M,K})(
+    x::NTuple{N,T},
+) where {N,M,K,T}
+    @inbounds for i = 1:M-1
+        if !_is_incompletely_normalized(x[i], x[i+1], K)
+            return false
+        end
+    end
+    @inbounds first_limb = x[1]
+    @inbounds for i = M+1:N
+        if !_is_incompletely_normalized(first_limb, x[i], M, K)
+            return false
+        end
+    end
+    return true
+end
+
+
+function (cond::IncompletelyNormalizedCondition{N,M,K})(
+    x::AbstractVector{T},
+) where {N,M,K,T}
+    Base.require_one_based_indexing(x)
+    @assert length(x) == N
+    @inbounds for i = 1:M-1
+        if !_is_incompletely_normalized(x[i], x[i+1], K)
+            return false
+        end
+    end
+    @inbounds first_limb = x[1]
+    @inbounds for i = M+1:N
+        if !_is_incompletely_normalized(first_limb, x[i], M, K)
+            return false
+        end
+    end
+    return true
+end
+
+
+export StronglyNormalizedCondition
+
+
+struct StronglyNormalizedCondition{N,M} <: AbstractTwoSumCondition{N}
+    function StronglyNormalizedCondition{N,M}() where {N,M}
+        @assert N >= M >= 1
+        return new{N,M}()
+    end
+end
+
+
+@inline _is_strongly_normalized(a::T, b::T) where {T} =
+    (a, b) === two_sum(a, b)
+
+
+function (cond::StronglyNormalizedCondition{N,M})(
+    x::NTuple{N,T},
+) where {N,M,T}
+    @inbounds for i = 1:M-1
+        if !_is_strongly_normalized(x[i], x[i+1])
+            return false
+        end
+    end
+    @inbounds final_limb = x[M]
+    @inbounds for i = M+1:N
+        if !_is_strongly_normalized(final_limb, x[i])
+            return false
+        end
+    end
+    return true
+end
+
+
+function (cond::StronglyNormalizedCondition{N,M})(
+    x::AbstractVector{T},
+) where {N,M,T}
+    Base.require_one_based_indexing(x)
+    @assert length(x) == N
+    @inbounds for i = 1:M-1
+        if !_is_strongly_normalized(x[i], x[i+1])
+            return false
+        end
+    end
+    @inbounds final_limb = x[M]
+    @inbounds for i = M+1:N
+        if !_is_strongly_normalized(final_limb, x[i])
+            return false
+        end
+    end
+    return true
+end
+
+
+=#
+
+
 end # module Comparators
