@@ -80,7 +80,7 @@ export svg_string
 ############################################################## DEPTH COMPUTATION
 
 
-export depth, canonize
+export depth, partition_by_depth, canonize
 
 
 @inline function depth(network::ComparatorNetwork{N}) where {N}
@@ -94,6 +94,30 @@ export depth, canonize
         generation = @inbounds Base.setindex(generation, age, j)
     end
     return maximum(generation)
+end
+
+
+function partition_by_depth(network::ComparatorNetwork{N}) where {N}
+    generation = ntuple(_ -> 0, Val{N}())
+    comparators = Vector{Tuple{UInt8,UInt8}}[]
+    for (i, j) in network.comparators
+        @assert 1 <= i < j <= N
+        gi = @inbounds generation[i]
+        gj = @inbounds generation[j]
+        age = max(gi, gj) + 1
+        if age > length(comparators)
+            @assert age == length(comparators) + 1
+            push!(comparators, [(i, j)])
+        else
+            push!((@inbounds comparators[age]), (i, j))
+        end
+        generation = @inbounds Base.setindex(generation, age, i)
+        generation = @inbounds Base.setindex(generation, age, j)
+    end
+    for v in comparators
+        sort!(v)
+    end
+    return comparators
 end
 
 
