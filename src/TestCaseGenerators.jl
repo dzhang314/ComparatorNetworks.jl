@@ -26,7 +26,7 @@ export all_bit_vectors
 
 
 @inline all_bit_vectors(::Val{5}) =
-    (0x00000001, 0x00010117, 0x0117177F, 0x177F7FFF, 0x7FFFFFFF)
+    (0x0000FFFF, 0x00FF00FF, 0x0F0F0F0F, 0x33333333, 0x55555555)
 
 
 @inline all_bit_vectors(::Val{6}) = (
