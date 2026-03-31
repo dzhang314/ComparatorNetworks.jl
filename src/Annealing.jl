@@ -30,7 +30,7 @@ function mutate_comparator_network!(
     w3 = Base.checked_add(w2, Int(swap_weight))
     while true
         w = rand(1:w3)
-        if w <= w1 # insert
+        if (w <= w1) & (N >= 2) # insert
             i = rand(prefix_length+1:num_comparators+1)
             insert!(network.comparators, i, _random_comparator(Val{N}()))
             if _test_conditions(network, conditions...)
