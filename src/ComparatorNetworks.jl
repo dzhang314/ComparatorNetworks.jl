@@ -290,13 +290,17 @@ end
     network::ComparatorNetwork{N},
 ) where {N,T,C,P}
     # Assumes: network is well-formed (comparator indices lie in 1:N).
-    for test_case in tester.test_cases
+    for (k, test_case) in pairs(tester.test_cases)
         @simd ivdep for i = 1:N
             @inbounds tester.buffer[i] = test_case[i]
         end
         _unsafe_run_comparator_network!(
             tester.buffer, network, tester.comparator)
         if !tester.postcondition(tester.buffer)
+            if k > 1
+                copyto!(tester.test_cases, 2, tester.test_cases, 1, k - 1)
+                @inbounds tester.test_cases[1] = test_case
+            end
             return false
         end
     end
@@ -331,7 +335,7 @@ function prune!(
     @assert 0 <= prefix_length <= length(network.comparators)
     while true
         found = false
-        for i in shuffle(prefix_length+1:length(network.comparators))
+        for i in shuffle((prefix_length+1):length(network.comparators))
             original_comparator = network.comparators[i]
             deleteat!(network.comparators, i)
             if _test_conditions(network, conditions...)
@@ -350,7 +354,7 @@ end
 
 @inline function _random_comparator(::Val{N}) where {N}
     i = rand(0x01:UInt8(N))
-    j = rand(0x01:UInt8(N - 1))
+    j = rand(0x01:UInt8(N-1))
     j += UInt8(j >= i)
     return minmax(i, j)
 end
